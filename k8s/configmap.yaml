@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: template-config
+data:
+  db.host: "postgres-service"
+  db.port: "5432"
+  db.name: "template_db"
+  application.yml: |
+    spring:
+      application:
+        name: template-service
+      jpa:
+        hibernate:
+          ddl-auto: update
+        show-sql: true

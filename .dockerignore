@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gradle
+build
+.idea
+*.md
+docker-compose.yml
+k8s
+helm
+.github
