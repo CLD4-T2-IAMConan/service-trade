@@ -3,9 +3,9 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: template-postgres
+    container_name: trade-postgres
     environment:
-      POSTGRES_DB: template_db
+      POSTGRES_DB: trade_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -22,11 +22,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: template-service
+    container_name: trade-service
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: template_db
+      DB_NAME: trade_db
       DB_USER: postgres
       DB_PASSWORD: postgres
     ports:

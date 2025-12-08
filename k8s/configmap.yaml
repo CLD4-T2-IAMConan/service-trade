@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: template-config
+  name: trade-config
 data:
   db.host: "postgres-service"
   db.port: "5432"
-  db.name: "template_db"
+  db.name: "trade_db"
   application.yml: |
     spring:
       application:
-        name: template-service
+        name: trade-service
       jpa:
         hibernate:
           ddl-auto: update
