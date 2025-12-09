@@ -1,6 +1,6 @@
-package com.company.template.controller;
+package com.company.trade.controller;
 
-import com.company.template.dto.ApiResponse;
+import com.company.trade.dto.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +15,7 @@ public class HealthController {
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<Map<String, String>>> health() {
         return ResponseEntity.ok(
-            ApiResponse.success(Map.of("status", "UP", "service", "template"))
+            ApiResponse.success(Map.of("status", "UP", "service", "trade"))
         );
     }
 }

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: template-service
+  name: trade-service
   labels:
-    app: template-service
+    app: trade-service
 spec:
   type: ClusterIP
   selector:
-    app: template-service
+    app: trade-service
   ports:
   - port: 80
     targetPort: 8080

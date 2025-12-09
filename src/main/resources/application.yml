@@ -1,6 +1,6 @@
 spring:
   application:
-    name: template-service
+    name: trade-service
 
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:passit_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul

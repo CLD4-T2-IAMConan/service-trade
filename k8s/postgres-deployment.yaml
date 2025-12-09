@@ -22,16 +22,16 @@ spec:
           name: postgres
         env:
         - name: POSTGRES_DB
-          value: "template_db"
+          value: "trade_db"
         - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:
-              name: template-secret
+              name: trade-secret
               key: db.user
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: template-secret
+              name: trade-secret
               key: db.password
         volumeMounts:
         - name: postgres-storage

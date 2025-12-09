@@ -1,6 +1,6 @@
-package com.company.template.exception;
+package com.company.trade.exception;
 
-import com.company.template.dto.ApiResponse;
+import com.company.trade.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
