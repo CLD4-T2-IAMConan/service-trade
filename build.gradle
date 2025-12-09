@@ -38,6 +38,9 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // Database
+    runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 tasks.named('test') {
