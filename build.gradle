@@ -38,6 +38,20 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // Database
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Spring Boot Test를 위한 필수 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // JUnit 5 (jupiter) API 명시적 추가 (Test 어노테이션 사용을 위해 필수)
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+
+    // JUnit 5 엔진 (테스트 실행 환경 제공을 위해 필요)
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+
+    // Spring Boot Test Starter (이 안에 JUnit 5가 포함되어 있지만, 명시적으로 추가하여 오류를 해결 시도)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.named('test') {
