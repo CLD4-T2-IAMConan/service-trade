@@ -14,6 +14,8 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
      */
     Optional<Deal> findByTicketIdAndBuyerId(Long ticketId, Long buyerId);
 
+    Optional<Deal> findByTicketIdAndDealStatus(Long ticketId, DealStatus dealStatus);
+
     // 💡 참고: 만약 Deal 엔티티 필드 이름이 ticketId가 아니라 targetTicketId 등이었다면
     // 메서드 이름은 findByTargetTicketIdAndBuyerId로 변경해야 합니다.
 }

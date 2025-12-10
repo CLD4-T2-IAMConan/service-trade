@@ -2,6 +2,7 @@ package com.company.trade.entity;
 
 // 거래(Deal)의 상태를 정의합니다.
 public enum DealStatus {
+    WAITING,
     /** 거래 요청: 구매자가 판매자에게 거래를 요청한 상태 */
     PENDING,
 

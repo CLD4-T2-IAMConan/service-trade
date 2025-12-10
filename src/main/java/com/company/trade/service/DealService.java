@@ -1,5 +1,6 @@
 package com.company.trade.service;
 
+import com.company.trade.dto.DealDetailResponse;
 import com.company.trade.dto.DealRequest;
 import com.company.trade.dto.DealResponse;
 import com.company.trade.entity.Deal;
@@ -83,4 +84,20 @@ public class DealService {
         // 4. 응답 DTO 변환 및 반환
         return DealResponse.from(savedDeal);
     }
+
+    // DealService.java (추가해야 할 메서드 예시)
+    public DealDetailResponse getPendingDealDetails(Long ticketId) {
+        // 1. Ticket 조회
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("티켓을 찾을 수 없습니다."));
+
+        // 2. PENDING Deal 조회
+        // 💡 dealRepository에 findByTicketIdAndDealStatus(Long ticketId, DealStatus status) 메서드가 필요함
+        Deal deal = dealRepository.findByTicketIdAndDealStatus(ticketId, DealStatus.PENDING)
+                .orElse(null);
+
+        // 3. DTO로 변환 및 반환
+        return DealDetailResponse.from(ticket, deal);
+    }
 }
+
