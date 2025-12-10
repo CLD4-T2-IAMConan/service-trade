@@ -13,7 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import java.security.Principal;
 
 // 현재 로그인한 사용자 정보 (구매자 ID)를 가져오기 위해 Spring Security 의존성이 필요함
@@ -42,7 +43,7 @@ public class DealController {
         // Long buyerId = Long.parseLong(principal.getName());
 
         // *** 테스트를 위해 임시로 buyerId를 설정합니다. ***
-        Long buyerId = 1L;
+        Long buyerId = 4L;
 
         try {
             // 2. 서비스 호출
@@ -88,6 +89,67 @@ public class DealController {
         } catch (Exception e) {
             // 예상치 못한 서버 내부 오류
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 요청 상세 조회 중 서버 오류가 발생했습니다.");
+        }
+    }
+
+    @PutMapping("/{dealId}/reject")
+    public ResponseEntity<?> rejectDealRequest(
+            @PathVariable Long dealId,
+            Principal principal // 인증 시스템 사용 시
+    ) {
+        // ⚠️ 실제 환경에서는 인증된 사용자(판매자) ID를 가져와 권한 검사를 해야 합니다.
+        // Long sellerId = Long.parseLong(principal.getName());
+
+        // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
+        Long sellerId = 3L;
+
+        try {
+            // 1. 서비스 호출
+            dealService.rejectDeal(dealId, sellerId);
+
+            // 2. 200 OK 응답 반환
+            return ResponseEntity.ok("양도 요청이 성공적으로 거절되었습니다.");
+
+        } catch (EntityNotFoundException e) {
+            // Deal ID가 유효하지 않거나 찾을 수 없을 때
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            // 거래 상태가 PENDING이 아니거나, 판매자 ID가 일치하지 않을 때 등 비즈니스 로직 오류
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            // 예상치 못한 서버 내부 오류
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 거절 중 서버 오류가 발생했습니다.");
+        }
+    }
+
+    @PutMapping("/{dealId}/accept")
+    public ResponseEntity<?> acceptDealRequest(
+            @PathVariable Long dealId,
+            Principal principal // 인증 시스템 사용 시
+    ) {
+        // ⚠️ 실제 환경에서는 인증된 사용자(판매자) ID를 가져와 권한 검사를 해야 합니다.
+        // Long sellerId = Long.parseLong(principal.getName());
+
+        // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
+        Long sellerId = 3L;
+
+        try {
+            // 1. 서비스 호출
+            // 이제 dealService.acceptDeal 메서드를 구현해야 합니다.
+            dealService.acceptDeal(dealId, sellerId);
+
+            // 2. 200 OK 응답 반환
+            return ResponseEntity.ok("양도 요청이 성공적으로 수락되었습니다.");
+
+        } catch (EntityNotFoundException e) {
+            // Deal ID가 유효하지 않거나 찾을 수 없을 때
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            // 거래 상태가 PENDING이 아니거나, 판매자 ID가 일치하지 않을 때 등 비즈니스 로직 오류
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            // 예상치 못한 서버 내부 오류
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 수락 중 서버 오류가 발생했습니다.");
         }
     }
 }

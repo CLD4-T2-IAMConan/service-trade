@@ -99,5 +99,72 @@ public class DealService {
         // 3. DTO로 변환 및 반환
         return DealDetailResponse.from(ticket, deal);
     }
+
+    @Transactional // 💡 두 테이블의 상태 변경이 한 트랜잭션으로 묶여야 합니다.
+    public void rejectDeal(Long dealId, Long sellerId) {
+        // 1. Deal 요청 조회
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("요청하신 거래(Deal)를 찾을 수 없습니다."));
+
+        // 2. 비즈니스 유효성 검사
+        // 2-1. 판매자 권한 검사 (현재 로그인한 사용자가 티켓의 주인인지)
+        if (!deal.getSellerId().equals(sellerId)) {
+            throw new IllegalStateException("해당 거래를 거절할 권한이 없습니다.");
+        }
+
+        // 2-2. 상태 검사 (PENDING 상태일 때만 거절 가능)
+        if (deal.getDealStatus() != DealStatus.PENDING) {
+            throw new IllegalStateException("현재 거래 상태(" + deal.getDealStatus() + ")에서는 거절할 수 없습니다.");
+        }
+
+        // 3. Deal 상태 변경: REJECTED
+        deal.setDealStatus(DealStatus.CANCELED);
+        // deal.setCancelReason("판매자가 요청 거절"); // 필요하다면 거절 사유 추가
+        dealRepository.save(deal);
+
+        // 4. Ticket 상태 변경: RESERVED -> AVAILABLE
+        // 티켓을 조회하고 상태를 변경합니다.
+        Ticket ticket = ticketRepository.findById(deal.getTicketId())
+                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
+
+        // 4-1. 티켓 상태 검사 (RESERVED 상태일 때만 AVAILABLE로 변경)
+        if (ticket.getStatus() != TicketStatus.RESERVED) {
+            // 이 예외는 이론적으로 발생해서는 안되지만, 데이터 정합성을 위해 체크합니다.
+            throw new IllegalStateException("티켓 상태가 RESERVED가 아니므로 AVAILABLE로 변경할 수 없습니다.");
+        }
+
+        // 4-2. 상태 변경
+        ticket.setStatus(TicketStatus.AVAILABLE);
+        ticketRepository.save(ticket);
+    }
+
+    @Transactional // Transactional 어노테이션 확인
+    public void acceptDeal(Long dealId, Long sellerId) {
+        // 1. Deal 요청 조회
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("요청하신 거래(Deal)를 찾을 수 없습니다."));
+
+        // 2. 비즈니스 유효성 검사
+        // 2-1. 판매자 권한 검사
+        if (!deal.getSellerId().equals(sellerId)) {
+            throw new IllegalStateException("해당 거래를 수락할 권한이 없습니다.");
+        }
+
+        // 2-2. 상태 검사 (PENDING 상태일 때만 수락 가능)
+        if (deal.getDealStatus() != DealStatus.PENDING) {
+            throw new IllegalStateException("현재 거래 상태(" + deal.getDealStatus() + ")에서는 수락할 수 없습니다.");
+        }
+
+        // 3. Deal 상태 변경: PENDING -> ACCEPTED
+        deal.setDealStatus(DealStatus.ACCEPTED);
+        deal.setDealAt(LocalDateTime.now()); // 거래 확정 시간 기록
+        dealRepository.save(deal);
+
+        // 4. Ticket 상태 변경: (생략)
+        // 티켓 상태는 RESERVED를 유지하고, 실제 결제가 확인되었을 때 SOLD로 변경합니다.
+
+        // 이 시점에서 해당 티켓이 다른 PENDING Deal이 있다면 모두 REJECTED 처리하는 로직을 추가할 수 있지만,
+        // 지금은 하나의 PENDING Deal만 존재한다고 가정하고 넘어갑니다.
+    }
 }
 
