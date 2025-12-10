@@ -1,7 +1,6 @@
 package com.company.trade.entity;
 
-import com.company.trade.entity.TicketStatus;
-import jakarta.persistence.*; // Spring Boot 3.x 이상에서는 jakarta 패키지 사용
+import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -35,11 +34,9 @@ public class Ticket {
     @Column(name = "ticket_status", nullable = false)
     private TicketStatus status; // DB 컬럼: ticket_status
 
-    // 💡 해결: 'price' 대신 'original_price' 컬럼에 매핑
     @Column(name = "original_price", nullable = false, precision = 10, scale = 0)
     private Integer originalPrice; // Decimal(10,0)은 Java에서 Integer 또는 BigDecimal 사용 가능. 간단하게 Integer 사용.
 
-    // 💡 해결: 'price' 대신 'selling_price' 컬럼에 매핑
     @Column(name = "selling_price", nullable = true, precision = 10, scale = 0)
     private Integer sellingPrice; // Decimal(10,0)은 Integer 사용.
 
