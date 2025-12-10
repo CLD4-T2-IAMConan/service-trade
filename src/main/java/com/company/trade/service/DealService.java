@@ -7,12 +7,16 @@ import com.company.trade.entity.Deal;
 import com.company.trade.entity.DealStatus;
 import com.company.trade.entity.Ticket;
 import com.company.trade.entity.TicketStatus;
+import com.company.trade.entity.Payments;
+import com.company.trade.entity.PaymentsStatus;
 import com.company.trade.repository.DealRepository;
 import com.company.trade.repository.TicketRepository;
+import com.company.trade.repository.PaymentsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 class EntityNotFoundException extends RuntimeException {
@@ -33,6 +37,7 @@ public class DealService {
 
     private final TicketRepository ticketRepository;
     private final DealRepository dealRepository;
+    private final PaymentsRepository paymentsRepository;
 
     /**
      * 구매자 주도 양도 요청 생성 로직
@@ -155,14 +160,38 @@ public class DealService {
             throw new IllegalStateException("현재 거래 상태(" + deal.getDealStatus() + ")에서는 수락할 수 없습니다.");
         }
 
-        // 3. Deal 상태 변경: PENDING -> ACCEPTED
+        // 🌟🌟🌟 💡 수정된 로직: Ticket에서 가격 정보 가져오기 🌟🌟🌟
+        Ticket ticket = ticketRepository.findById(deal.getTicketId())
+                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
+
+        // 1. Integer 타입의 가격을 가져옴
+        Integer sellingPriceInt = ticket.getSellingPrice();
+
+        if (sellingPriceInt == null) {
+            throw new IllegalStateException("티켓 가격 정보가 누락되었습니다.");
+        }
+
+        // 2. Integer를 BigDecimal로 변환
+        // Integer.valueOf(0) 대신 new BigDecimal(sellingPriceInt) 또는 BigDecimal.valueOf(sellingPriceInt) 사용
+        BigDecimal dealPrice = BigDecimal.valueOf(sellingPriceInt.longValue()); // longValue()를 사용하거나
+        // BigDecimal dealPrice = new BigDecimal(sellingPriceInt); // 이렇게 직접 변환
+
+        // 2. Deal 상태 변경: PENDING -> ACCEPTED (기존 로직 유지)
         deal.setDealStatus(DealStatus.ACCEPTED);
-        deal.setDealAt(LocalDateTime.now()); // 거래 확정 시간 기록
-        dealRepository.save(deal);
+        // ... (Deal 저장 로직 유지)
 
-        // 4. Ticket 상태 변경: (생략)
-        // 티켓 상태는 RESERVED를 유지하고, 실제 결제가 확인되었을 때 SOLD로 변경합니다.
+        // 3. Payments 대기 데이터 생성 (수정 없음, 이제 dealPrice는 BigDecimal임)
+        Payments payment = Payments.builder()
+                .dealId(dealId)
+                .buyerId(deal.getBuyerId())
+                .sellerId(deal.getSellerId())
+                .price(dealPrice) // 🌟 BigDecimal로 변환된 가격 사용
+                .paymentStatus(PaymentsStatus.PENDING)
+                .transactionStatus("READY")
+                .paymentMethod("TBD")
+                .build();
 
+        paymentsRepository.save(payment);
         // 이 시점에서 해당 티켓이 다른 PENDING Deal이 있다면 모두 REJECTED 처리하는 로직을 추가할 수 있지만,
         // 지금은 하나의 PENDING Deal만 존재한다고 가정하고 넘어갑니다.
     }
