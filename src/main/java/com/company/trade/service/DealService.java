@@ -194,5 +194,46 @@ public class DealService {
         // 이 시점에서 해당 티켓이 다른 PENDING Deal이 있다면 모두 REJECTED 처리하는 로직을 추가할 수 있지만,
         // 지금은 하나의 PENDING Deal만 존재한다고 가정하고 넘어갑니다.
     }
+
+    // 1. 거래 취소 메서드 (구매자용)
+    @Transactional
+    public void cancelDeal(Long dealId, Long buyerId) {
+
+        // 1. Deal 엔티티 조회
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("취소할 거래(Deal)를 찾을 수 없습니다. (ID: " + dealId + ")"));
+
+        // 2. 권한 및 상태 검증
+        if (!deal.getBuyerId().equals(buyerId)) {
+            throw new IllegalArgumentException("해당 거래를 취소할 권한이 없습니다.");
+        }
+        // 취소 가능한 상태(ACCEPTED)인지 확인. (PENDING 상태에서 취소하면 DEAL_REQUEST_PAGE에서 처리할 수도 있으나, 여기서는 ACCEPTED 후 결제 전 상황에 집중)
+        if (deal.getDealStatus() != DealStatus.ACCEPTED) {
+            throw new IllegalArgumentException("거래 상태(" + deal.getDealStatus() + ")에서는 취소할 수 없습니다. (ACCEPTED 상태여야 함)");
+        }
+
+        // 3. Payments 상태 변경: PENDING -> CANCELED
+        // Deal ID를 사용하여 Payments를 찾습니다.
+        paymentsRepository.findByDealId(dealId)
+                .ifPresent(payments -> {
+                    // 결제 상태가 PENDING일 때만 취소 처리하는 것이 안전함
+                    if (payments.getPaymentStatus() == PaymentsStatus.PENDING) {
+                        payments.setPaymentStatus(PaymentsStatus.CANCELED);
+                        paymentsRepository.save(payments);
+                    }
+                });
+
+        // 4. Ticket 상태 복원: RESERVED -> AVAILABLE
+        ticketRepository.findById(deal.getTicketId())
+                .ifPresent(ticket -> {
+                    // 티켓 상태를 예약(RESERVED)에서 구매 가능(AVAILABLE)으로 복원
+                    ticket.setStatus(TicketStatus.AVAILABLE);
+                    ticketRepository.save(ticket);
+                });
+
+        // 5. Deal 상태 변경: ACCEPTED -> CANCELED
+        deal.setDealStatus(DealStatus.CANCELED);
+        dealRepository.save(deal);
+    }
 }
 

@@ -152,4 +152,30 @@ public class DealController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 수락 중 서버 오류가 발생했습니다.");
         }
     }
+
+    @PutMapping("/{dealId}/cancel")
+    public ResponseEntity<?> cancelDeal(
+            @PathVariable Long dealId,
+            Principal principal) {
+
+        try {
+            // ⚠️ 사용자 인증 ID 추출 로직 (실제는 Principal 객체 사용)
+            Long buyerId = 1L; // getUserId(principal) 메서드를 사용해야 함
+
+            dealService.cancelDeal(dealId, buyerId);
+
+            return ResponseEntity.ok().body("거래가 성공적으로 취소되었습니다.");
+
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // 권한 오류나 상태 오류 (예: 이미 취소된 거래)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("거래 취소 중 예상치 못한 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+
 }
