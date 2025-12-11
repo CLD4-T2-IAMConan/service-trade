@@ -123,7 +123,7 @@ public class DealService {
         }
 
         // 3. Deal 상태 변경: REJECTED
-        deal.setDealStatus(DealStatus.CANCELED);
+        deal.setDealStatus(DealStatus.REJECTED);
         // deal.setCancelReason("판매자가 요청 거절"); // 필요하다면 거절 사유 추가
         dealRepository.save(deal);
 
@@ -173,8 +173,8 @@ public class DealService {
 
         // 2. Integer를 BigDecimal로 변환
         // Integer.valueOf(0) 대신 new BigDecimal(sellingPriceInt) 또는 BigDecimal.valueOf(sellingPriceInt) 사용
-        BigDecimal dealPrice = BigDecimal.valueOf(sellingPriceInt.longValue()); // longValue()를 사용하거나
-        // BigDecimal dealPrice = new BigDecimal(sellingPriceInt); // 이렇게 직접 변환
+        //BigDecimal dealPrice = BigDecimal.valueOf(sellingPriceInt.longValue()); // longValue()를 사용하거나
+        BigDecimal dealPrice = new BigDecimal(sellingPriceInt); // 이렇게 직접 변환
 
         // 2. Deal 상태 변경: PENDING -> ACCEPTED (기존 로직 유지)
         deal.setDealStatus(DealStatus.ACCEPTED);
@@ -187,7 +187,6 @@ public class DealService {
                 .sellerId(deal.getSellerId())
                 .price(dealPrice) // 🌟 BigDecimal로 변환된 가격 사용
                 .paymentStatus(PaymentsStatus.PENDING)
-                .transactionStatus("READY")
                 .paymentMethod("TBD")
                 .build();
 

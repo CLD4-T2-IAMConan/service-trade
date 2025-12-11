@@ -43,7 +43,7 @@ public class DealController {
         // Long buyerId = Long.parseLong(principal.getName());
 
         // *** 테스트를 위해 임시로 buyerId를 설정합니다. ***
-        Long buyerId = 4L;
+        Long buyerId = 1L;
 
         try {
             // 2. 서비스 호출
@@ -101,7 +101,7 @@ public class DealController {
         // Long sellerId = Long.parseLong(principal.getName());
 
         // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
-        Long sellerId = 3L;
+        Long sellerId = 4L;
 
         try {
             // 1. 서비스 호출
@@ -131,7 +131,7 @@ public class DealController {
         // Long sellerId = Long.parseLong(principal.getName());
 
         // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
-        Long sellerId = 3L;
+        Long sellerId = 4L;
 
         try {
             // 1. 서비스 호출

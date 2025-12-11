@@ -42,9 +42,6 @@ public class Payments {
     @Column(nullable = false, updatable = false)
     private LocalDateTime paymentDate;
 
-    // 트랜잭션 상태 (PG사와의 통신 상태 등, 복잡하므로 일단 Enum 대신 String으로 매핑)
-    @Column(nullable = false, length = 50)
-    private String transactionStatus; // transaction_status
 
     // 결제 완료 시간
     private LocalDateTime completionDate; // completion_date
