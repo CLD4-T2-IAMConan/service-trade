@@ -1,17 +1,19 @@
 package com.company.trade.controller;
 
-import com.company.trade.dto.PaymentsDetailResponse;
-import com.company.trade.dto.PaymentsCompleteRequest;
+import com.company.trade.dto.*;
 import com.company.trade.service.PaymentsService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
 
 import java.security.Principal; // Spring Security 사용자 인증 정보
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/payments")
@@ -45,33 +47,117 @@ public class PaymentsController {
     }
 
     /**
-     * [POST] 결제 완료 처리 API
-     * URL: /api/payments/{paymentId}/complete
+     * [GET] NICEPAY 결제창 호출을 위한 준비 데이터 제공 API
+     * URL: GET /api/payments/{paymentId}/prepare
      */
-    @PostMapping("/{paymentId}/complete")
-    public ResponseEntity<?> completePayment(
+    @GetMapping("/{paymentId}/prepare")
+    public ResponseEntity<?> preparePayment(
             @PathVariable Long paymentId,
-            @RequestBody PaymentsCompleteRequest request) {
+            Principal principal) {
 
         try {
-            // 💡 결제 시스템과의 연동/검증 로직은 PaymentsService 내부에서 처리되었다고 가정합니다.
-            paymentsService.completePayment(paymentId, request);
+            Long buyerId = 1L; // ⚠️ getUserId(principal); 메서드로 실제 사용자 ID 추출 필요
 
-            // 성공 응답 (HTTP 200 OK)
-            return ResponseEntity.ok().body("결제가 성공적으로 완료되었습니다.");
+            NicepayPrepareResponse response = paymentsService.preparePayment(paymentId, buyerId);
+
+            return ResponseEntity.ok(response);
 
         } catch (EntityNotFoundException e) {
-            // Payments나 연결된 Deal이 없는 경우
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
-        } catch (IllegalStateException e) {
-            // Payments 상태가 PENDING이 아니거나 Deal 상태가 ACCEPTED가 아닌 경우
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            // 기타 서버 오류
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("결제 완료 처리 중 예상치 못한 오류가 발생했습니다: " + e.getMessage());
+                    .body("결제 준비 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * [POST] NICEPAY 인증 성공 후 콜백 받는 엔드포인트 (NICEPAY가 POST 요청)
+     * URL: POST /api/payments/nicepay/callback
+     */
+    @PostMapping("/nicepay/callback")
+    public RedirectView nicepayCallback(@ModelAttribute NicepayCallbackRequest request) {
+        // 💡 주의: NICEPAY는 폼 데이터(x-www-form-urlencoded)로 POST를 보내므로 @RequestBody 대신 @ModelAttribute를 사용해야 합니다.
+
+        Long paymentId = null;
+        try {
+            // 1. NICEPAY가 전달한 orderId에서 paymentId 추출
+            // orderId 형식: "ORDER_7"
+            if (request.getOrderId() == null || !request.getOrderId().startsWith("ORDER_")) {
+                throw new IllegalArgumentException("유효하지 않은 주문 번호 형식입니다.");
+            }
+
+            String paymentIdStr = request.getOrderId().substring("ORDER_".length());
+            paymentId = Long.parseLong(paymentIdStr);
+
+            // 2. 최종 승인 로직 호출 (로직은 아직 미구현)
+            // paymentsService.completePayment(paymentId, request);
+
+            // 3. 최종 승인 후, 프론트엔드 결과 페이지로 리다이렉트
+            String redirectUrl = "http://localhost:3000/buyer/payment/" + paymentId + "/result"
+                    + "?tid=" + request.getTid()
+                    + "&authToken=" + request.getAuthToken()
+                    // 💡 NICEPAY 인증 성공 코드를 명시적으로 넘겨서 프론트엔드에서 즉시 처리하도록 함
+                    + "&authResultCode=0000";
+
+            return new RedirectView(redirectUrl);
+
+        } catch (IllegalArgumentException e) {
+            // 파싱 실패 또는 유효하지 않은 orderId 처리
+            return new RedirectView("http://localhost:3000/payment/fail?msg=InvalidOrderId");
+        } catch (Exception e) {
+            // 최종 승인 로직(completePayment) 실패 시 처리
+            // 실제 서비스에서는 paymentId가 null이 아닐 경우 이 정보를 사용해 실패 DB 업데이트 후 리다이렉트합니다.
+            String failUrl = "http://localhost:3000/payment/fail";
+            if (paymentId != null) {
+                failUrl = "http://localhost:3000/buyer/payment/" + paymentId + "/result?status=failure";
+            }
+            return new RedirectView(failUrl);
+        }
+    }
+
+    // 💡 결제 승인 요청을 받는 엔드포인트 복구
+    @PostMapping("/{paymentId}/complete")
+    public ResponseEntity<String> completePayment(
+            @PathVariable String paymentId
+            // ⚠️ @RequestBody 부분을 완전히 제거합니다.
+            // @RequestBody PaymentsCompleteRequest request
+    ) {
+        try {
+            log.info("--- 🚨 DTO 제거 후 진입 성공! ID: {} ---", paymentId);
+
+            // ⚠️ DTO가 없으므로 서비스 호출 로직도 주석 처리합니다.
+            // paymentsService.completePayment(request.getTid(), request.getAuthToken(), "ORDER_" + paymentId);
+
+            return ResponseEntity.ok("NO_DTO_SUCCESS");
+        } catch (Exception e) {
+            log.error("결제 ID {} 최종 승인 처리 실패", paymentId, e);
+            // 프론트엔드에 500 에러와 함께 실패 메시지 전달
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    /**
+     * [POST] NICEPAY Webhook 수신 엔드포인트
+     * NICEPAY 서버가 결제 완료/실패 결과를 직접 통보하는 경로입니다.
+     * URL: POST /api/payments/nicepay/webhook
+     * * ⚠️ 이 URL은 NICEPAY 개발자 센터에 등록해야 합니다.
+     */
+    // PaymentsController.java
+
+    @PostMapping("/nicepay/webhook")
+    public ResponseEntity<String> nicepayWebhookHandler(
+            @RequestBody NicepayWebhookRequest webhookRequest) {
+        try {
+            paymentsService.handleNicepayWebhook(webhookRequest);
+            return ResponseEntity.ok("OK"); // 성공 시 200 OK
+        } catch (Exception e) {
+            // 3. 실패 시: 로그를 남기고 500 에러를 반환하여 NICEPAY가 알 수 있게 함
+            log.error("NICEPAY Webhook 처리 실패: {}", e.getMessage(), e);
+
+            // NICEPAY에게 "처리에 실패했음"을 명확히 알림 (재시도 유도)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("FAIL");
         }
     }
 }

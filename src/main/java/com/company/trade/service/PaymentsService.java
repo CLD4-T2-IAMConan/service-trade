@@ -1,20 +1,36 @@
 package com.company.trade.service;
 
-import com.company.trade.dto.PaymentsDetailResponse;
-import com.company.trade.dto.PaymentsCompleteRequest;
+import com.company.trade.dto.*;
 import com.company.trade.entity.*;
 import com.company.trade.repository.PaymentsRepository;
 import com.company.trade.repository.DealRepository;
 import com.company.trade.repository.TicketRepository;
 
+import java.util.Date;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.binary.Hex;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.util.Map;
+
 
 // Custom Runtime Exceptions (DealService에서 정의된 것을 재사용한다고 가정)
 // class EntityNotFoundException extends RuntimeException { /* ... */ }
 // class IllegalStateException extends RuntimeException { /* ... */ }
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentsService {
@@ -22,6 +38,13 @@ public class PaymentsService {
     private final PaymentsRepository paymentsRepository;
     private final DealRepository dealRepository;
     private final TicketRepository ticketRepository;
+
+    private final RestTemplate restTemplate; // AppConfig에 Bean 등록 필수
+
+    // 💡 NICEPAY 공용 테스트 계정 정보 (그대로 사용하세요!)
+    private final String NICEPAY_MERCHANT_ID = "nicepay00m";
+    private final String NICEPAY_MERCHANT_KEY = "EYzu8jGGMfqaDEp76gSckuvnaHHu+bC4opsSN6lHv3b2lurNYkVXrZ7Z1AoqQnXI3eLuaUFyoRNC6FkrzVjceg==";
+    private final String NICEPAY_APPROVAL_URL = "https://web.nicepay.co.kr/v3/v2/Payment.jsp";
 
     /**
      * [GET] Payments ID를 기반으로 Payments, Deal, Ticket 상세 정보를 조회합니다.
@@ -55,51 +78,187 @@ public class PaymentsService {
         return PaymentsDetailResponse.from(payments, deal, ticket);
     }
 
-    /**
-     * [POST] 결제 시스템에서 결제 완료 통보를 받은 후, 최종 상태를 처리합니다.
-     * 이 메서드는 Payments 상태를 COMPLETED로, 연결된 Deal 상태도 COMPLETED로 변경합니다.
-     * @param paymentsId 처리할 Payments ID
-     * @param request 결제 수단, 거래 ID 등 포함 (결제 검증 로직은 생략)
-     */
-    @Transactional
-    public void completePayment(Long paymentsId, PaymentsCompleteRequest request) {
+    // nicepay 연동
+    @Transactional(readOnly = true)
+    public NicepayPrepareResponse preparePayment(Long paymentId, Long buyerId) {
 
-        // 1. Payments 엔티티 조회
-        Payments payments = paymentsRepository.findById(paymentsId)
-                .orElseThrow(() -> new EntityNotFoundException("처리할 결제 정보를 찾을 수 없습니다. (ID: " + paymentsId + ")"));
+        Payments payments = paymentsRepository.findById(paymentId)
+                .orElseThrow(() -> new EntityNotFoundException("결제 정보를 찾을 수 없습니다."));
 
-        // 2. 상태 검증: PENDING 상태일 때만 완료 처리 가능
-        if (payments.getPaymentStatus() != PaymentsStatus.PENDING) {
-            throw new IllegalStateException("현재 결제 상태(" + payments.getPaymentStatus() + ")에서는 완료 처리할 수 없습니다.");
+        if (!payments.getBuyerId().equals(buyerId)) {
+            throw new IllegalArgumentException("결제 준비 권한이 없습니다.");
         }
 
-        // 3. Payments 상태 변경: PENDING -> COMPLETED
-        payments.setPaymentStatus(PaymentsStatus.PAID);
-        payments.setPaymentMethod(request.getPaymentMethod());
-        paymentsRepository.save(payments); // 명시적 저장
+        // 1. Deal 엔티티 조회
+        Long dealId = payments.getDealId();
 
-        // 4. 연결된 Deal 엔티티 조회 및 상태 변경: ACCEPTED -> COMPLETED
-        Deal deal = dealRepository.findById(payments.getDealId())
-                .orElseThrow(() -> new EntityNotFoundException("연결된 거래(Deal)를 찾을 수 없습니다."));
+        // Payments에 dealId 정보는 있지만, 실제 Deal 엔티티가 존재하지 않을 경우를 대비해 예외 처리
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("연결된 거래(Deal) 정보를 찾을 수 없습니다. (Deal ID: " + dealId + ")"));
 
-        // 4-1. Deal 상태 검증: ACCEPTED 상태일 때만 COMPLETED 처리 가능
-        if (deal.getDealStatus() != DealStatus.ACCEPTED) {
-            throw new IllegalStateException("연결된 거래 상태(" + deal.getDealStatus() + ")가 수락(ACCEPTED) 상태가 아닙니다.");
-        }
-
-        deal.setDealStatus(DealStatus.COMPLETED);
-        dealRepository.save(deal); // 명시적 저장
-
-        // 5. 연결된 Ticket 상태 변경 (DealService.acceptDeal에서 이미 SOLD로 변경했으므로, 재검증만)
+        // 3. Ticket 엔티티 조회 (상품명 획득)
         Ticket ticket = ticketRepository.findById(deal.getTicketId())
-                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
+                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓 정보를 찾을 수 없습니다."));
 
-        // 💡 중요: Ticket이 SOLD 상태가 아니라면 데이터 정합성 오류이므로 예외 처리 (선택적)
-        if (ticket.getStatus() != TicketStatus.SOLD) {
-            // 이 상황은 이전에 DealService.acceptDeal에서 오류가 났음을 의미
-            // throw new IllegalStateException("티켓 상태가 SOLD가 아닙니다. 데이터 정합성 오류.");
+        // 4. 금액 변환 및 Null 체크
+        if (payments.getPrice() == null) {
+            throw new IllegalStateException("Payments 엔티티의 price 필드가 NULL입니다.");
         }
+        Long amountLong = payments.getPrice().longValue();
+
+        // 5. NICEPAY 연동 파라미터 생성
+
+        String orderId = "ORDER_" + paymentId;
+        String nicepayClientId = "S2_46f0ecb8e7f648ab8252b55c453bd443"; // 실제 설정 값으로 대체 필요
+
+        // 4. Return URL 설정
+        String returnUrl = "http://localhost:8083/api/payments/nicepay/callback";
+
+
+        return NicepayPrepareResponse.builder()
+                .clientId(nicepayClientId)
+                .orderId(orderId)
+                .amount(amountLong) // 💡 payments 엔티티의 총 금액 필드 사용
+                .goodsName(ticket.getEventName())  // 💡 티켓의 이벤트 이름 사용
+                .returnUrl(returnUrl)
+                .paymentId(String.valueOf(paymentId))
+                .build();
     }
 
-    // 참고: DealService에 구현되어야 할 public void cancelDeal(Long dealId, Long buyerId)는 PaymentsService에 포함하지 않습니다.
+
+    /**
+     * NICEPAY 웹훅 요청을 받아 최종 결제 상태를 DB에 반영합니다.
+     */
+
+    @Transactional
+    public void handleNicepayWebhook(NicepayWebhookRequest webhookRequest) {
+
+        // 1. 필수 데이터 검증 (다시 활성화)
+        if (webhookRequest == null || webhookRequest.getOrderId() == null || webhookRequest.getOrderId().isEmpty()) {
+            log.error("NICEPAY Webhook: 필수 파라미터(OrderId) 누락. 요청 데이터: {}", webhookRequest);
+            throw new IllegalArgumentException("유효하지 않은 웹훅 요청입니다: OrderId 누락");
+        }
+
+        String orderId = webhookRequest.getOrderId(); // DTO에서 @JsonProperty("Moid")로 매핑된 값
+        Long paymentId;
+
+        // 2. OrderId 파싱 (다시 활성화)
+        try {
+            String paymentIdStr = orderId.replace("ORDER_", "");
+            paymentId = Long.parseLong(paymentIdStr);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("OrderId 형식이 올바르지 않습니다: " + orderId);
+        }
+
+        // 3. Payments 객체 조회
+        Payments payments = paymentsRepository.findById(paymentId)
+                .orElseThrow(() -> new EntityNotFoundException("결제 정보를 찾을 수 없습니다. [OrderId: " + orderId + "]"));
+
+        // 4. 결과 코드 검증 (0000이 성공)
+        // DTO 필드명이 ResultCode(대문자)로 오더라도 @JsonProperty로 매핑했으므로 getResultCode() 사용 가능
+        String resultCode = webhookRequest.getResultCode();
+
+        if (!"0000".equals(resultCode)) {
+            // 실패 로그 및 DB 업데이트
+            log.warn("NICEPAY 결제 실패 통보. [TID: {}, Code: {}]", webhookRequest.getTid(), resultCode);
+
+            payments.setPaymentStatus(PaymentsStatus.FAILED); // 또는 "FAILED"
+            payments.setPgTid(webhookRequest.getTid());
+            payments.setPgStatus(resultCode);
+
+            // 예외를 던져 Controller가 500을 반환하게 함 (또는 여기서 return으로 종료해도 됨)
+            return;
+            // throw new RuntimeException("NICEPAY 결제 실패"); // 실패 시 예외를 던질지, 조용히 처리할지는 정책 결정 필요
+        }
+
+        // 5. (선택) 금액 검증 로직
+        // long webhookAmount = Long.parseLong(webhookRequest.getAmount());
+        // if (payments.getPrice().longValue() != webhookAmount) { ... }
+
+        // 6. 정상 결제 완료 처리 (DB 업데이트)
+        payments.setPaymentStatus(PaymentsStatus.PAID); // 또는 "PAID"
+        payments.setPgTid(webhookRequest.getTid());
+        payments.setPgStatus(resultCode);
+
+        // 승인 번호 저장
+        if (webhookRequest.getApprovalNum() != null) {
+            payments.setRefundReason("APPROVAL_NUM: " + webhookRequest.getApprovalNum());
+        }
+
+        payments.setCompletionDate(LocalDateTime.now());
+
+        // 7. Deal 상태 업데이트
+        Long dealId = payments.getDealId();
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("거래 정보를 찾을 수 없습니다."));
+
+        deal.setDealStatus(DealStatus.PAID); // 또는 "PAID"
+
+        log.info("NICEPAY 결제 최종 승인 완료. [PaymentId: {}]", paymentId);
+    }
+
+    @Transactional
+    public void completePayment(String tid, String authToken, String orderId) throws Exception {
+
+        // 1. DB에서 결제 정보 조회
+        Long paymentId = Long.parseLong(orderId.replace("ORDER_", ""));
+        Payments payments = paymentsRepository.findById(paymentId)
+                .orElseThrow(() -> new EntityNotFoundException("결제 정보를 찾을 수 없습니다."));
+
+        // 2. 요청 데이터 준비
+        String amt = String.valueOf(payments.getPrice().longValue());
+        String ediDate = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+
+        // 💡 SignData 생성 (공용 키 사용)
+        // 서명 데이터 = authToken + mid + amt + ediDate + merchantKey (순서 중요!)
+        String signDataStr = authToken + NICEPAY_MERCHANT_ID + amt + ediDate + NICEPAY_MERCHANT_KEY;
+        String signData = sha256Hex(signDataStr);
+
+        // 3. 헤더 설정
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        // 4. 바디 설정
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("TID", tid);
+        params.add("AuthToken", authToken);
+        params.add("MID", NICEPAY_MERCHANT_ID);
+        params.add("Amt", amt);
+        params.add("EdiDate", ediDate);
+        params.add("SignData", signData);
+        params.add("CharSet", "utf-8");
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
+        // 5. API 호출 (여기가 진짜 결제 승인 단계)
+        log.info("NICEPAY 승인 요청 시작: {}", params);
+        String responseBody = restTemplate.postForObject(NICEPAY_APPROVAL_URL, request, String.class);
+        log.info("NICEPAY 승인 응답: {}", responseBody);
+
+        // 6. 응답 처리 (간단한 파싱)
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> resultMap = mapper.readValue(responseBody, Map.class);
+
+        String resultCode = (String) resultMap.get("ResultCode");
+
+        if (!"3001".equals(resultCode)) { // 3001이 카드 결제 성공 코드 (테스트환경)
+            throw new RuntimeException("결제 승인 실패: " + resultMap.get("ResultMsg"));
+        }
+
+        // 7. 성공 시 DB 업데이트
+        payments.setPaymentStatus(PaymentsStatus.PAID);
+        payments.setPgTid(tid);
+        payments.setCompletionDate(LocalDateTime.now());
+
+        Deal deal = dealRepository.findById(payments.getDealId()).orElseThrow();
+        deal.setDealStatus(DealStatus.PAID);
+    }
+
+    // SHA-256 암호화 함수
+    private String sha256Hex(String input) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+        return new String(Hex.encodeHex(digest));
+    }
+
 }

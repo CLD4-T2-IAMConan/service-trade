@@ -41,6 +41,9 @@ dependencies {
 
     // Database
     runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // 💡 NICEPAY 승인 로직의 SHA-256 암호화에 필요
+    implementation 'commons-codec:commons-codec:1.15'
 }
 
 tasks.named('test') {
