@@ -4,9 +4,10 @@ import com.company.trade.dto.*;
 import com.company.trade.entity.*;
 import com.company.trade.repository.PaymentsRepository;
 import com.company.trade.repository.DealRepository;
-import com.company.trade.repository.TicketRepository;
 
 import java.util.Date;
+
+import com.company.trade.repository.TicketRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;

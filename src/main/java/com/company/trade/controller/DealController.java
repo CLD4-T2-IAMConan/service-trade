@@ -39,11 +39,8 @@ public class DealController {
             @RequestBody DealRequest request
              , Principal principal // 인증 시스템 사용 시
     ) {
-        // (1) 실제 환경에서는 인증된 사용자 정보를 가져와야 합니다.
-        // Long buyerId = Long.parseLong(principal.getName());
-
-        // *** 테스트를 위해 임시로 buyerId를 설정합니다. ***
-        Long buyerId = 1L;
+        // (1) 실제 환경에서는 인증된 사용자 정보를 가져와야 합니다
+        Long buyerId = Long.parseLong(principal.getName());
 
         try {
             // 2. 서비스 호출
@@ -53,8 +50,6 @@ public class DealController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
         } catch (RuntimeException e) { // 🌟🌟🌟 모든 RuntimeException을 잡습니다. 🌟🌟🌟
-            // Service 계층에서 던지는 EntityNotFoundException, DealCreationException 등
-            // 모든 사용자 정의 예외는 RuntimeException을 상속하므로 여기서 잡힙니다.
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             // 예상치 못한 서버 내부 오류
