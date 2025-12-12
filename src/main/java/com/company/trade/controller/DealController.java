@@ -9,6 +9,7 @@ import com.company.trade.entity.Deal;
 import com.company.trade.service.DealService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ import java.security.Principal;
 // import org.springframework.security.core.annotation.AuthenticationPrincipal;
 // import com.passit.auth.UserDetailsImpl;
 
-
+@Slf4j
 @RestController
 @RequestMapping("/api/deals")
 @RequiredArgsConstructor
@@ -34,13 +35,14 @@ public class DealController {
      * [POST] 구매자가 특정 티켓에 대한 양도 요청을 생성합니다.
      * URI: POST /api/deals/request
      */
+
     @PostMapping("/request")
     public ResponseEntity<?> createDealRequest(
             @RequestBody DealRequest request
              , Principal principal // 인증 시스템 사용 시
     ) {
         // (1) 실제 환경에서는 인증된 사용자 정보를 가져와야 합니다
-        Long buyerId = Long.parseLong(principal.getName());
+        Long buyerId = request.getBuyerId();
 
         try {
             // 2. 서비스 호출

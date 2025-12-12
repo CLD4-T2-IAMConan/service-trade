@@ -25,5 +25,6 @@ public class DealRequest {
     // 양도 요청 만료 일시 (판매자가 이 시간 내에 수락해야 함)
     private LocalDateTime expireAt;
 
+    private Long buyerId;
     // 이외에 buyerId는 Controller에서 로그인 정보로 가져옵니다.
 }

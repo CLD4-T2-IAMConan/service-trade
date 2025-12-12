@@ -1,6 +1,9 @@
 package com.company.trade.dto;
 import com.company.trade.entity.TicketStatus;
 import com.company.trade.entity.TradeType;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.EnumDeserializer;
 import lombok.*;
 
 import java.math.BigDecimal;
