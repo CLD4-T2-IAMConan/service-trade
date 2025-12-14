@@ -4,6 +4,7 @@ import com.company.trade.dto.*;
 import com.company.trade.service.PaymentsService;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,18 +33,21 @@ public class PaymentsController {
 
     /**
      * [GET] 결제 정보 상세 조회 API
-     * URL: /api/payments/{paymentId}/details
+     * URL: /api/payments/{paymentId}/detail
+     * * * 변경 사항: Principal 대신 @RequestParam을 사용하여 currentUserId를 받습니다.
      */
-    @GetMapping("/{paymentId}/details")
+    @GetMapping("/{paymentId}/detail")
     public ResponseEntity<?> getPaymentDetails(
             @PathVariable Long paymentId,
-            Principal principal) {
-            Long buyerId = getUserId(principal); // 현재 로그인된 사용자 ID
+            @RequestParam Long currentUserId) {
 
-            // PaymentsService 호출 (권한 검증 포함)
-            PaymentsDetailResponse response = paymentsService.getPaymentDetails(paymentId, buyerId);
+        Long buyerId = currentUserId; // 현재는 전달받은 currentUserId를 buyerId로 간주
 
-            return ResponseEntity.ok(response);
+        // PaymentsService 호출 (권한 검증 포함)
+        // Service 계층에서는 이 buyerId가 해당 paymentId의 소유자인지 확인해야 합니다.
+        PaymentsDetailResponse response = paymentsService.getPaymentDetails(paymentId, buyerId);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -53,10 +57,10 @@ public class PaymentsController {
     @GetMapping("/{paymentId}/prepare")
     public ResponseEntity<?> preparePayment(
             @PathVariable Long paymentId,
-            Principal principal) {
+            @RequestParam Long currentUserId) {
 
         try {
-            Long buyerId = 1L; // ⚠️ getUserId(principal); 메서드로 실제 사용자 ID 추출 필요
+            Long buyerId = currentUserId;
 
             NicepayPrepareResponse response = paymentsService.preparePayment(paymentId, buyerId);
 
@@ -91,11 +95,8 @@ public class PaymentsController {
             String paymentIdStr = request.getOrderId().substring("ORDER_".length());
             paymentId = Long.parseLong(paymentIdStr);
 
-            // 2. 최종 승인 로직 호출 (로직은 아직 미구현)
-            // paymentsService.completePayment(paymentId, request);
-
             // 3. 최종 승인 후, 프론트엔드 결과 페이지로 리다이렉트
-            String redirectUrl = "http://localhost:3000/buyer/payment/" + paymentId + "/result"
+            String redirectUrl = "http://localhost:3000/payments/" + paymentId + "/result"
                     + "?tid=" + request.getTid()
                     + "&authToken=" + request.getAuthToken()
                     // 💡 NICEPAY 인증 성공 코드를 명시적으로 넘겨서 프론트엔드에서 즉시 처리하도록 함
@@ -105,36 +106,43 @@ public class PaymentsController {
 
         } catch (IllegalArgumentException e) {
             // 파싱 실패 또는 유효하지 않은 orderId 처리
-            return new RedirectView("http://localhost:3000/payment/fail?msg=InvalidOrderId");
+            return new RedirectView("http://localhost:3000/payments/" + paymentId + "/result");
         } catch (Exception e) {
             // 최종 승인 로직(completePayment) 실패 시 처리
             // 실제 서비스에서는 paymentId가 null이 아닐 경우 이 정보를 사용해 실패 DB 업데이트 후 리다이렉트합니다.
-            String failUrl = "http://localhost:3000/payment/fail";
+            String failUrl = "http://localhost:3000/payments/" + paymentId + "/result";
             if (paymentId != null) {
-                failUrl = "http://localhost:3000/buyer/payment/" + paymentId + "/result?status=failure";
+                failUrl = "http://localhost:3000/payments/" + paymentId + "/result";
             }
             return new RedirectView(failUrl);
         }
     }
 
-    // 💡 결제 승인 요청을 받는 엔드포인트 복구
+    /**
+     * [POST] 결제 최종 승인 요청을 받는 엔드포인트
+     * 💡 프론트엔드가 쿼리 파라미터로 tid, authToken을 보낸다고 가정합니다.
+     * URL: POST /api/payments/{paymentId}/complete?tid=...&authToken=...
+     */
     @PostMapping("/{paymentId}/complete")
     public ResponseEntity<String> completePayment(
-            @PathVariable String paymentId
-            // ⚠️ @RequestBody 부분을 완전히 제거합니다.
-            // @RequestBody PaymentsCompleteRequest request
+            @PathVariable String paymentId, // Payment ID (예: "1")
+            @RequestParam("tid") String tid,      // NICEPAY 거래 ID
+            @RequestParam("authToken") String authToken // NICEPAY 인증 토큰
     ) {
         try {
-            log.info("--- 🚨 DTO 제거 후 진입 성공! ID: {} ---", paymentId);
+            log.info("--- 결제 최종 승인 요청 진입. Payment ID: {} ---", paymentId);
+            // 🚨 [임시] DTO 없이, 파라미터만 제대로 넘어왔는지 확인 후 성공 반환
+            log.info("NICEPAY 최종 승인 파라미터 확인 완료. TID: {}, AuthToken 길이: {}", tid, authToken.length());
 
-            // ⚠️ DTO가 없으므로 서비스 호출 로직도 주석 처리합니다.
-            // paymentsService.completePayment(request.getTid(), request.getAuthToken(), "ORDER_" + paymentId);
+            // ⚠️ 실제 서비스 호출 (주석 해제 필요)
+             paymentsService.completePayment(tid, authToken, "ORDER_" + paymentId);
 
-            return ResponseEntity.ok("NO_DTO_SUCCESS");
+            return ResponseEntity.ok("PAYMENT_APPROVAL_SUCCESS"); // 명확한 성공 메시지
+
         } catch (Exception e) {
             log.error("결제 ID {} 최종 승인 처리 실패", paymentId, e);
-            // 프론트엔드에 500 에러와 함께 실패 메시지 전달
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+            // 실패 시 500 에러와 함께 메시지 전달
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("결제 최종 승인 중 서버 오류 발생: " + e.getMessage());
         }
     }
 
@@ -146,18 +154,18 @@ public class PaymentsController {
      */
     // PaymentsController.java
 
-    @PostMapping("/nicepay/webhook")
-    public ResponseEntity<String> nicepayWebhookHandler(
-            @RequestBody NicepayWebhookRequest webhookRequest) {
-        try {
-            paymentsService.handleNicepayWebhook(webhookRequest);
-            return ResponseEntity.ok("OK"); // 성공 시 200 OK
-        } catch (Exception e) {
-            // 3. 실패 시: 로그를 남기고 500 에러를 반환하여 NICEPAY가 알 수 있게 함
-            log.error("NICEPAY Webhook 처리 실패: {}", e.getMessage(), e);
-
-            // NICEPAY에게 "처리에 실패했음"을 명확히 알림 (재시도 유도)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("FAIL");
-        }
-    }
+//    @PostMapping("/nicepay/webhook")
+//    public ResponseEntity<String> nicepayWebhookHandler(
+//            @RequestBody NicepayWebhookRequest webhookRequest) {
+//        try {
+//            paymentsService.handleNicepayWebhook(webhookRequest);
+//            return ResponseEntity.ok("OK"); // 성공 시 200 OK
+//        } catch (Exception e) {
+//            // 3. 실패 시: 로그를 남기고 500 에러를 반환하여 NICEPAY가 알 수 있게 함
+//            log.error("NICEPAY Webhook 처리 실패: {}", e.getMessage(), e);
+//
+//            // NICEPAY에게 "처리에 실패했음"을 명확히 알림 (재시도 유도)
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("FAIL");
+//        }
+//    }
 }

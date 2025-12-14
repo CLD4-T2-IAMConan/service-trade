@@ -2,13 +2,10 @@ package com.company.trade.controller;
 
 
 import com.company.trade.dto.*;
-import com.company.trade.entity.Deal;
-//import com.company.trade.service.DealCreationException;
 import com.company.trade.service.DealService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.company.trade.dto.DealRejectRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import java.security.Principal;
 
-// 현재 로그인한 사용자 정보 (구매자 ID)를 가져오기 위해 Spring Security 의존성이 필요함
-// 가정: UserDetailsImpl 객체에서 getUserId()를 통해 ID를 얻을 수 있습니다.
-// import org.springframework.security.core.annotation.AuthenticationPrincipal;
-// import com.passit.auth.UserDetailsImpl;
 
 @Slf4j
 @RestController
@@ -38,7 +31,6 @@ public class DealController {
     @PostMapping("/request")
     public ResponseEntity<?> createDealRequest(
             @RequestBody DealRequest request
-             , Principal principal // 인증 시스템 사용 시
     ) {
         // (1) 실제 환경에서는 인증된 사용자 정보를 가져와야 합니다
         Long buyerId = request.getBuyerId();
