@@ -5,6 +5,7 @@ import com.company.trade.entity.*;
 import com.company.trade.repository.PaymentsRepository;
 import com.company.trade.repository.DealRepository;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import com.company.trade.repository.TicketRepository;
@@ -45,6 +46,31 @@ public class PaymentsService {
     private final String NICEPAY_MERCHANT_ID = "nicepay00m";
     private final String NICEPAY_MERCHANT_KEY = "EYzu8jGGMfqaDEp76gSckuvnaHHu+bC4opsSN6lHv3b2lurNYkVXrZ7Z1AoqQnXI3eLuaUFyoRNC6FkrzVjceg==";
     private final String NICEPAY_APPROVAL_URL = "https://web.nicepay.co.kr/v3/v2/Payment.jsp";
+
+    /**
+     * 거래 수락 시 호출되어, 구매자에게 결제 요청을 생성하고 저장합니다.
+     * @param deal 거래(Deal) 엔티티 정보
+     * @return 생성된 Payment 엔티티
+     */
+    @Transactional
+    public Payments createPayment(Deal deal, BigDecimal amount) {
+
+        // 1. Payment 엔티티 생성
+        Payments payment = Payments.builder()
+                .dealId(deal.getDealId())
+                .buyerId(deal.getBuyerId())
+                .sellerId(deal.getSellerId())
+                .price(amount)
+                .paymentStatus(PaymentsStatus.PENDING) // 결제 요청 대기 상태
+                .paymentDate(LocalDateTime.now())
+                .paymentMethod("METHOD_PENDING")
+                .build();
+
+        // 2. Payment DB에 저장
+        Payments savedPayment = paymentsRepository.save(payment);
+
+        return savedPayment;
+    }
 
     /**
      * [GET] Payments ID를 기반으로 Payments, Deal, Ticket 상세 정보를 조회합니다.

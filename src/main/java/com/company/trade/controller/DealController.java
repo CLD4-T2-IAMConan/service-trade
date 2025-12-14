@@ -1,9 +1,7 @@
 package com.company.trade.controller;
 
 
-import com.company.trade.dto.DealDetailResponse;
-import com.company.trade.dto.DealRequest;
-import com.company.trade.dto.DealResponse;
+import com.company.trade.dto.*;
 import com.company.trade.entity.Deal;
 //import com.company.trade.service.DealCreationException;
 import com.company.trade.service.DealService;
@@ -11,6 +9,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.company.trade.dto.DealRejectRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +50,7 @@ public class DealController {
             // 3. 201 Created 응답 반환
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
-        } catch (RuntimeException e) { // 🌟🌟🌟 모든 RuntimeException을 잡습니다. 🌟🌟🌟
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             // 예상치 못한 서버 내부 오류
@@ -59,62 +58,59 @@ public class DealController {
         }
     }
 
-    @GetMapping("/ticket/{ticketId}/request")
-    public ResponseEntity<?> getPendingDealDetails(
-            @PathVariable Long ticketId
-            , Principal principal // 인증 시스템 사용 시
+
+    @GetMapping("/{dealId}/detail")
+    public ResponseEntity<ApiResponse<DealDetailResponse>> getDealDetail(
+            @PathVariable Long dealId
     ) {
-        // (1) 실제 환경에서는 판매자 인증 및 권한 검사가 필요합니다.
-        // Long sellerId = Long.parseLong(principal.getName());
-
-        // *** 테스트를 위해 임시 Seller ID를 3L로 설정하고, 서비스 내부에서 권한 검사를 수행한다고 가정합니다. ***
-        // (여기서는 일단 데이터 조회만 성공시키는 것을 목표로 합니다.)
-
         try {
-            // 2. 서비스 호출: 티켓 ID로 티켓 정보와 PENDING Deal 정보를 함께 가져옵니다.
-            DealDetailResponse response = dealService.getPendingDealDetails(ticketId);
+            // 1. Service에 상세 정보 조회 위임
+            DealDetailResponse dealDetail = dealService.getDealDetail(dealId);
 
-            // 3. 200 OK 응답 반환
-            return ResponseEntity.ok(response);
+            // 2. 성공 응답 반환
+            return ResponseEntity.ok(ApiResponse.success(dealDetail));
 
         } catch (EntityNotFoundException e) {
-            // 티켓을 찾을 수 없을 때
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (RuntimeException e) {
-            // 기타 비즈니스 로직 오류 (예: PENDING 딜이 여러 개일 때 등)
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            // 거래 ID를 찾을 수 없는 경우
+            return ResponseEntity
+                    .status(404)
+                    .body(ApiResponse.error("거래 ID " + dealId + "번을 찾을 수 없습니다."));
+
         } catch (Exception e) {
-            // 예상치 못한 서버 내부 오류
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 요청 상세 조회 중 서버 오류가 발생했습니다.");
+            // 기타 서버 내부 오류
+            log.error("[DEAL-DETAIL-ERROR] 거래 상세 조회 중 오류 발생: dealId={}", dealId, e);
+            return ResponseEntity
+                    .status(500)
+                    .body(ApiResponse.error("거래 상세 조회 중 서버 오류가 발생했습니다."));
         }
     }
 
     @PutMapping("/{dealId}/reject")
-    public ResponseEntity<?> rejectDealRequest(
+    public ResponseEntity<String> rejectDealRequest(
             @PathVariable Long dealId,
-            Principal principal // 인증 시스템 사용 시
+            @RequestBody DealRejectRequest request // 요청 본문(cancelReason)을 받습니다.
+            // 🚨 2. Principal 매개변수 제거
     ) {
-        // ⚠️ 실제 환경에서는 인증된 사용자(판매자) ID를 가져와 권한 검사를 해야 합니다.
-        // Long sellerId = Long.parseLong(principal.getName());
 
-        // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
-        Long sellerId = 4L;
+        // 1. 요청 본문에서 현재 사용자 ID 추출 (이 ID가 거래의 SellerID와 일치해야 함)
+        Long sellerId = request.getCurrentUserId();
+
+        // 2. 거절 사유 추출
+        String cancelReason = request.getCancelReason();
 
         try {
-            // 1. 서비스 호출
-            dealService.rejectDeal(dealId, sellerId);
+            // 3. 서비스 호출: dealId, sellerId (권한 검증용), cancelReason을 전달합니다.
+            dealService.rejectDeal(dealId, sellerId, cancelReason);
 
-            // 2. 200 OK 응답 반환
+            // 4. 200 OK 응답 반환
             return ResponseEntity.ok("양도 요청이 성공적으로 거절되었습니다.");
 
         } catch (EntityNotFoundException e) {
-            // Deal ID가 유효하지 않거나 찾을 수 없을 때
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (IllegalStateException e) {
-            // 거래 상태가 PENDING이 아니거나, 판매자 ID가 일치하지 않을 때 등 비즈니스 로직 오류
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            // 판매자 ID 불일치 또는 거래 상태 오류
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
-            // 예상치 못한 서버 내부 오류
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 거절 중 서버 오류가 발생했습니다.");
         }
     }
@@ -122,42 +118,84 @@ public class DealController {
     @PutMapping("/{dealId}/accept")
     public ResponseEntity<?> acceptDealRequest(
             @PathVariable Long dealId,
-            Principal principal // 인증 시스템 사용 시
+            @RequestBody DealRejectRequest request // 🚨 DealRejectRequest DTO를 받습니다.
     ) {
-        // ⚠️ 실제 환경에서는 인증된 사용자(판매자) ID를 가져와 권한 검사를 해야 합니다.
-        // Long sellerId = Long.parseLong(principal.getName());
 
-        // *** 테스트를 위해 임시로 sellerId를 설정 (seller@example.com의 ID 3) ***
-        Long sellerId = 4L;
+        // 1. 요청 본문에서 현재 사용자 ID 추출 (판매자 ID)
+        Long sellerId = request.getCurrentUserId();
+
+        // 🚨 [필수 로그] 서비스 호출 전 ID 확인 로그 추가
+        log.info("[CONTROLLER] Accept Request. Deal ID: {}, Seller ID from Body: {}", dealId, sellerId);
+
 
         try {
-            // 1. 서비스 호출
-            // 이제 dealService.acceptDeal 메서드를 구현해야 합니다.
+            // 2. 서비스 호출
+            // ⚠️ sellerId가 null이거나 0일 경우, 서비스 로직 시작 전에 예외 처리가 필요할 수 있습니다.
+            if (sellerId == null || sellerId <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("판매자 ID가 유효하지 않습니다.");
+            }
+
             dealService.acceptDeal(dealId, sellerId);
 
-            // 2. 200 OK 응답 반환
+            // 3. 200 OK 응답 반환
             return ResponseEntity.ok("양도 요청이 성공적으로 수락되었습니다.");
 
         } catch (EntityNotFoundException e) {
-            // Deal ID가 유효하지 않거나 찾을 수 없을 때
+            log.warn("[CLIENT_ERROR] Deal ID {} 조회 실패: {}", dealId, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (IllegalStateException e) {
             // 거래 상태가 PENDING이 아니거나, 판매자 ID가 일치하지 않을 때 등 비즈니스 로직 오류
+            log.warn("[BUSINESS_ERROR] Deal ID {} 비즈니스 규칙 위반: {}", dealId, e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            // 예상치 못한 서버 내부 오류
+            log.error("[SERVER_ERROR] Deal ID {} 수락 중 예상치 못한 오류 발생.", dealId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("거래 수락 중 서버 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * [PUT] 특정 거래(Deal)의 상태를 지정된 새 상태로 변경합니다.
+     * URL: PUT /deals/{dealId}/status/{newStatus}
+     * * @param dealId 변경할 거래의 ID
+     * @param newStatus 변경할 목표 상태 (예: ACCEPTED, REJECTED, PAID 등)
+     * @return 변경된 거래의 응답 DTO (DealResponse)
+     */
+    @PutMapping("/{dealId}/status/{newStatus}")
+    public ResponseEntity<?> updateDealStatus(
+            @PathVariable Long dealId,
+            @PathVariable String newStatus
+    ) {
+        try {
+            // 1. 서비스에 상태 변경 요청을 위임
+            DealResponse updatedDeal = dealService.updateDealStatus(dealId, newStatus);
+
+            // 2. 성공 시 200 OK와 함께 변경된 거래 정보 반환
+            // ⚠️ ApiResponse 클래스를 사용한다고 가정합니다.
+            // return ResponseEntity.ok(ApiResponse.success(updatedDeal));
+            return ResponseEntity.ok(updatedDeal); // 간단하게 DTO만 반환하도록 작성했습니다.
+
+        } catch (IllegalArgumentException e) {
+            // newStatus가 유효하지 않은 DealStatus Enum 값일 경우
+            return ResponseEntity.badRequest().body("유효하지 않은 거래 상태: " + newStatus);
+        } catch (EntityNotFoundException e) {
+            // 거래 ID를 찾을 수 없는 경우
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            // 현재 상태에서 목표 상태로 변경할 수 없는 경우 (비즈니스 상태 전이 규칙 위반)
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            // 기타 서버 내부 오류
+            return ResponseEntity.internalServerError().body("거래 상태 변경 중 서버 오류 발생.");
         }
     }
 
     @PutMapping("/{dealId}/cancel")
     public ResponseEntity<?> cancelDeal(
             @PathVariable Long dealId,
-            Principal principal) {
+            @RequestBody DealRejectRequest request) {
 
         try {
-            // ⚠️ 사용자 인증 ID 추출 로직 (실제는 Principal 객체 사용)
-            Long buyerId = 1L; // getUserId(principal) 메서드를 사용해야 함
+            Long buyerId = request.getCurrentUserId();
 
             dealService.cancelDeal(dealId, buyerId);
 

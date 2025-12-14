@@ -36,7 +36,7 @@ public class DealResponse {
     /**
      * Entity -> DTO 변환을 위한 정적 팩토리 메서드
      */
-    public static DealResponse from(Deal deal) {
+    public static DealResponse fromEntity(Deal deal) {
         return DealResponse.builder()
                 .dealId(deal.getDealId())
                 .ticketId(deal.getTicketId())
