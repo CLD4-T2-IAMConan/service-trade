@@ -388,5 +388,85 @@ public class DealService {
         deal.setDealStatus(DealStatus.CANCELED);
         dealRepository.save(deal);
     }
+
+
+    public void confirmDeal(Long dealId, Long userId) {
+
+        log.info("[START] 구매 확정 프로세스 시작. Deal ID: {}, 요청 사용자 ID: {}", dealId, userId);
+
+        // 1. Deal 엔티티 조회 및 권한/상태 검증
+        Deal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("거래 정보를 찾을 수 없습니다."));
+
+        log.debug("Deal 엔티티 조회 성공. Deal ID: {}, Buyer ID: {}, Deal Status: {}",
+                dealId, deal.getBuyerId(), deal.getDealStatus());
+
+
+        // A. 권한 검증: 요청자가 구매자인지 확인
+        if (!deal.getBuyerId().equals(userId)) {
+            log.warn("권한 검증 실패: 요청 사용자 ID ({})는 Deal의 구매자 ID ({})와 일치하지 않습니다.", userId, deal.getBuyerId());
+            throw new IllegalArgumentException("거래 확정 권한이 없습니다. (구매자만 확정 가능)");
+        }
+        log.debug("권한 검증 통과. 사용자 ID: {}", userId);
+
+        // B. 상태 검증: Deal이 PAID 상태인지 확인
+        if (deal.getDealStatus() != DealStatus.PAID) {
+            log.warn("Deal 상태 검증 실패: 현재 상태 ({})는 PAID가 아닙니다.", deal.getDealStatus());
+            throw new IllegalArgumentException("거래 상태가 PAID가 아닙니다. 현재 상태: " + deal.getDealStatus());
+        }
+        log.debug("Deal 상태 검증 통과. 현재 상태: PAID");
+
+
+        // C. Payments 상태 검증
+        Payments payments = paymentsRepository.findByDealId(dealId)
+                .orElseThrow(() -> new EntityNotFoundException("결제 정보를 찾을 수 없습니다."));
+
+
+
+        if (payments.getPaymentStatus() != PaymentsStatus.PAID) {
+            log.warn("Payments 상태 검증 실패: 현재 상태 ({})는 PAID가 아닙니다.", payments.getPaymentStatus());
+            throw new IllegalArgumentException("결제 상태가 PAID가 아닙니다. 확정할 수 없습니다.");
+        }
+        log.debug("Payments 상태 검증 통과. 현재 상태: PAID");
+
+
+        // 🚨 [핵심 변경] 2. Ticket 상태 검증: TicketServiceApi 사용 및 Enum 비교
+        Long ticketId = deal.getTicketId();
+        log.info("티켓 상태 검증 시작. 연관 Ticket ID: {}", ticketId);
+
+        // 2-1. TicketServiceApi를 통해 상세 정보 조회
+        TicketResponse ticketResponse = ticketServiceApi.getTicketById(ticketId)
+                .orElseThrow(() -> new EntityNotFoundException("연관된 티켓 정보를 찾을 수 없습니다. (ID: " + ticketId + ")"));
+
+        log.debug("Ticket Service API 조회 성공. Ticket ID: {}, Current Status: {}",
+                ticketId, ticketResponse.getTicketStatus());
+
+
+        // 2-2. TicketResponse에서 상태를 TicketStatus Enum으로 가져와 검증
+        TicketStatus currentTicketStatus = ticketResponse.getTicketStatus();
+        if (currentTicketStatus != TicketStatus.SOLD) {
+            log.warn("Ticket 상태 검증 실패: 현재 상태 ({})는 SOLD가 아닙니다.", currentTicketStatus.name());
+            throw new IllegalArgumentException("티켓 상태가 SOLD가 아닙니다. 확정할 수 없습니다. 현재 상태: " + currentTicketStatus.name());
+        }
+        log.debug("Ticket 상태 검증 통과. 현재 상태: SOLD");
+
+
+        // 3. 상태 변경 (핵심 로직)
+        log.info("DB/API 상태 변경 시작. Ticket ID: {}, Deal ID: {}", ticketId, dealId);
+
+        // A. Ticket 상태 변경: SOLD -> USED (TicketServiceApi 호출)
+        String newTicketStatus = TicketStatus.USED.name(); // "USED"
+        ticketServiceApi.updateTicketStatus(ticketId, "USED");
+        log.info("Ticket Service API 호출 완료. Ticket ID {} 상태를 {}로 변경 요청됨.", ticketId, newTicketStatus);
+
+
+        // B. Deal 상태 변경: PAID -> COMPLETED
+        deal.setDealStatus(DealStatus.COMPLETED);
+        log.info("Deal 엔티티 상태 변경 완료. Deal ID {} 상태를 COMPLETED로 설정.", dealId);
+
+
+        log.info("[END] 구매 확정 프로세스 성공적으로 완료. Deal ID: {}", dealId);
+    }
 }
+
 

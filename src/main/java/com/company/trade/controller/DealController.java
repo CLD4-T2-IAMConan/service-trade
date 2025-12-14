@@ -205,4 +205,31 @@ public class DealController {
     }
 
 
+    /**
+     * PUT /api/deals/{dealId}/confirm
+     * 구매자가 결제를 최종 확정하고 거래를 완료 상태로 변경하는 API
+     */
+    @PutMapping("/{dealId}/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmDeal(
+            @PathVariable Long dealId,
+            @RequestBody ConfirmDealRequest request
+    ) {
+        try {
+            // 사용자 ID와 Deal ID를 서비스로 전달
+            dealService.confirmDeal(dealId, request.getCurrentUserId());
+
+            return ResponseEntity.ok(ApiResponse.success(null));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.fail(e.getMessage()));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.fail(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.fail("거래 확정 처리 중 서버 오류가 발생했습니다."));
+        }
+    }
+
 }

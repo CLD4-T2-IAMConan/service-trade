@@ -29,7 +29,7 @@ public class TicketServiceApi {
      * 특정 티켓 ID로 티켓 상세 정보를 조회합니다.
      */
     public Optional<TicketResponse> getTicketById(Long ticketId) {
-        String url = TICKET_SERVICE_URL + "/tickets/{ticketId}";
+        String url = TICKET_SERVICE_URL + "/api/tickets/{ticketId}";
 
         try {
             // 💡 [핵심 변경] getForObject 대신 exchange 사용 (Generic Type 처리)
@@ -70,10 +70,10 @@ public class TicketServiceApi {
     }
 
     /**
-     * 티켓 상태를 지정된 새 상태로 변경합니다. (PUT /tickets/{id}/status/{newStatus})
+     * 티켓 상태를 지정된 새 상태로 변경합니다. (PUT /api/tickets/{id}/status/{newStatus})
      */
     public void updateTicketStatus(Long ticketId, String newStatus) {
-        String url = TICKET_SERVICE_URL + "/tickets/{ticketId}/status/{newStatus}";
+        String url = TICKET_SERVICE_URL + "/api/tickets/{ticketId}/status/{newStatus}";
 
 
         try {
