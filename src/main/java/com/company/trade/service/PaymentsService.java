@@ -23,6 +23,8 @@ import java.util.Base64;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -305,6 +307,9 @@ public class PaymentsService {
 
     @Transactional
     public void completePayment(String tid, String authToken, String orderId) throws Exception {
+        // 🚨 0. 현재 요청의 Authorization 헤더에서 토큰을 직접 추출합니다.
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String accessToken = (attributes != null) ? attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION) : null;
 
         // 0. 메서드 진입 및 초기 정보 로깅
         log.info("--- [START] NICEPAY REST API 승인 프로세스 시작. Order ID: {}, TID: {} ---", orderId, tid);
@@ -401,7 +406,7 @@ public class PaymentsService {
         Long ticketId = deal.getTicketId(); // 💡 Deal 엔티티에 getTicketId()가 있다고 가정
 
         // 티켓 상태를 'SOLD'나 'PAID'로 변경하는 API 호출
-        ticketServiceApi.updateTicketStatus(ticketId, "SOLD");
+        ticketServiceApi.updateTicketStatus(ticketId, "SOLD", accessToken);
 
         log.info("[END] 결제 및 거래 상태 업데이트 완료. Payment ID: {}", paymentId);
     }

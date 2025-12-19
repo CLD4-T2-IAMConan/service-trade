@@ -9,10 +9,13 @@ import com.company.trade.repository.PaymentsRepository;
 import com.company.trade.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.company.trade.dto.TicketResponse;
 import com.company.trade.service.PaymentsService;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 
 import java.math.BigDecimal;
@@ -51,6 +54,10 @@ public class DealService {
     @Transactional
     public DealResponse createDealRequest(DealRequest request, Long buyerId) {
 
+        // 🚨 0. 현재 요청의 Authorization 헤더에서 토큰을 직접 추출합니다.
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String accessToken = (attributes != null) ? attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION) : null;
+
         // ===================================================================
         // 1. 티켓 정보 조회 및 유효성 검증
         // ===================================================================
@@ -84,7 +91,7 @@ public class DealService {
         try {
 
             // 🚨 TicketServiceApi.updateTicketStatus 호출
-            ticketServiceApi.updateTicketStatus(request.getTicketId(), TicketStatus.RESERVED.name());
+            ticketServiceApi.updateTicketStatus(request.getTicketId(), TicketStatus.RESERVED.name(), accessToken);
 
         } catch (RuntimeException e) {
             // 🚨 이 Catch 블록은 API 호출 오류(400, 404, 연결 오류)를 잡고 DealCreationException으로 전환
@@ -391,6 +398,9 @@ public class DealService {
 
 
     public void confirmDeal(Long dealId, Long userId) {
+        // 🚨 0. 현재 요청의 Authorization 헤더에서 토큰을 직접 추출합니다.
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String accessToken = (attributes != null) ? attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION) : null;
 
         log.info("[START] 구매 확정 프로세스 시작. Deal ID: {}, 요청 사용자 ID: {}", dealId, userId);
 
@@ -456,7 +466,7 @@ public class DealService {
 
         // A. Ticket 상태 변경: SOLD -> USED (TicketServiceApi 호출)
         String newTicketStatus = TicketStatus.USED.name(); // "USED"
-        ticketServiceApi.updateTicketStatus(ticketId, "USED");
+        ticketServiceApi.updateTicketStatus(ticketId, "USED", accessToken);
         log.info("Ticket Service API 호출 완료. Ticket ID {} 상태를 {}로 변경 요청됨.", ticketId, newTicketStatus);
 
 

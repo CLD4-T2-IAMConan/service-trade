@@ -7,11 +7,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j; // 🚨 Slf4j Logger Import
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Optional;
 
@@ -72,13 +76,23 @@ public class TicketServiceApi {
     /**
      * 티켓 상태를 지정된 새 상태로 변경합니다. (PUT /api/tickets/{id}/status/{newStatus})
      */
-    public void updateTicketStatus(Long ticketId, String newStatus) {
+    public void updateTicketStatus(Long ticketId, String newStatus, String accessToken) {
         String url = TICKET_SERVICE_URL + "/api/tickets/{ticketId}/status/{newStatus}";
 
 
         try {
+            HttpHeaders headers = new HttpHeaders();
+            if (accessToken != null) {
+                // "Bearer "가 이미 포함되어 있을 수도 있고 없을 수도 있으니 체크
+                String token = accessToken.startsWith("Bearer ") ? accessToken : "Bearer " + accessToken;
+                headers.set(HttpHeaders.AUTHORIZATION, token);
+            }
+
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            restTemplate.exchange(url, HttpMethod.PUT, requestEntity, Void.class, ticketId, newStatus);
             // PUT 요청
-            restTemplate.put(url, null, ticketId, newStatus);
+//            restTemplate.put(url, null, ticketId, newStatus);
 
         } catch (HttpClientErrorException.NotFound e) {
             log.warn("[API-TICKET-PUT-FAIL] 404 Not Found. 티켓 ID {}를 찾을 수 없음.", ticketId);
