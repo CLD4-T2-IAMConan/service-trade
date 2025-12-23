@@ -8,14 +8,14 @@ spring:
     password: ${DB_PASSWORD:passit_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
       hibernate:
-        ddl-auto: validate
-      show-sql: true
-      properties:
-        hibernate:
-          format_sql: true
-          dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 
 server:
   port: 8083
