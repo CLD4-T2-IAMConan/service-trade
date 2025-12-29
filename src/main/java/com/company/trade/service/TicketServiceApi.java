@@ -15,8 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Optional;
@@ -35,7 +33,13 @@ public class TicketServiceApi {
      * 특정 티켓 ID로 티켓 상세 정보를 조회합니다.
      */
     public Optional<TicketResponse> getTicketById(Long ticketId) {
-        String url = TICKET_SERVICE_URL + "/api/tickets/{ticketId}";
+        // UriComponentsBuilder를 사용하여 URL을 안전하게 생성 (슬래시 중복 방지)
+        String url = UriComponentsBuilder.fromHttpUrl(TICKET_SERVICE_URL)
+                .path("/api/tickets/{ticketId}")
+                .buildAndExpand(ticketId)
+                .toUriString();
+        
+        log.info("[API-TICKET-GET-START] 티켓 정보 조회 시작. Ticket ID: {}, URL: {}", ticketId, url);
 
         try {
             // 💡 [핵심 변경] getForObject 대신 exchange 사용 (Generic Type 처리)
@@ -45,8 +49,7 @@ public class TicketServiceApi {
                             HttpMethod.GET,
                             null, // Request Entity (없음)
                             // 🚨 Generic Type (ApiResponse<TicketResponse>)을 정확히 전달
-                            new ParameterizedTypeReference<ApiResponse<TicketResponse>>() {},
-                            ticketId
+                            new ParameterizedTypeReference<ApiResponse<TicketResponse>>() {}
                     );
 
 
@@ -69,9 +72,13 @@ public class TicketServiceApi {
             log.error("[API-TICKET-GET-FAIL] HTTP Client Error (4XX). Status={}, ResponseBody={}",
                     e.getStatusCode(), e.getResponseBodyAsString(), e);
             throw new RuntimeException("Ticket Service API 호출 중 HTTP 오류 발생: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+        } catch (ResourceAccessException e) {
+            // 네트워크 연결 실패 (타임아웃, 서버 꺼짐 등) 시 주로 발생하는 예외
+            log.error("[API-TICKET-GET-FAIL] 서버 연결 불가. URL={}, 메시지={}", url, e.getMessage(), e);
+            throw new RuntimeException("티켓 서비스 서버에 연결할 수 없습니다. 서버 상태를 확인하세요. URL: " + url);
         } catch (Exception e) {
-            log.error("[API-TICKET-GET-FAIL] 연결 또는 알 수 없는 오류 발생: Message={}", e.getMessage(), e);
-            throw new RuntimeException("Ticket Service API 연결 또는 알 수 없는 오류 발생: " + e.getMessage());
+            log.error("[API-TICKET-GET-FAIL] 연결 또는 알 수 없는 오류 발생: Message={}, URL={}", e.getMessage(), url, e);
+            throw new RuntimeException("티켓 정보 조회 중 연결 오류 발생: " + e.getMessage());
         }
     }
 

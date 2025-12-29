@@ -33,3 +33,8 @@ logging:
   level:
     com.company.template: DEBUG
     org.springframework: INFO
+
+# 외부 서비스 URL 설정
+api:
+  ticket-service:
+    url: ${TICKET_SERVICE_URL:http://host.docker.internal:8082}

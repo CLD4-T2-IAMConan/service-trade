@@ -34,6 +34,10 @@ public class DealController {
     ) {
         // (1) 실제 환경에서는 인증된 사용자 정보를 가져와야 합니다
         Long buyerId = request.getBuyerId();
+        
+        // 디버깅: 요청 데이터 로깅
+        log.info("[DEAL-REQUEST] 받은 요청 데이터 - ticketId: {}, buyerId: {}, quantity: {}, expireAt: {}", 
+                request.getTicketId(), buyerId, request.getQuantity(), request.getExpireAt());
 
         try {
             // 2. 서비스 호출

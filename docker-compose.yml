@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -12,6 +12,8 @@ services:
       DB_NAME: passit_db
       DB_USER: passit_user
       DB_PASSWORD: passit_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      TICKET_SERVICE_URL: http://host.docker.internal:8082
     ports:
       - "8083:8083"
     extra_hosts:
