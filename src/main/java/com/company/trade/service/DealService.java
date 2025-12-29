@@ -175,12 +175,12 @@ public class DealService {
                 .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
 
         // 4-1. 티켓 상태 검사 (RESERVED 상태일 때만 AVAILABLE로 변경)
-        if (ticket.getStatus() != TicketStatus.RESERVED) {
+        if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
             throw new IllegalStateException("티켓 상태가 RESERVED가 아니므로 AVAILABLE로 변경할 수 없습니다.");
         }
 
         // 4-2. 상태 변경
-        ticket.setStatus(TicketStatus.AVAILABLE);
+        ticket.setTicketStatus(TicketStatus.AVAILABLE);
         ticketRepository.save(ticket);
     }
 
@@ -387,7 +387,7 @@ public class DealService {
         ticketRepository.findById(deal.getTicketId())
                 .ifPresent(ticket -> {
                     // 티켓 상태를 예약(RESERVED)에서 구매 가능(AVAILABLE)으로 복원
-                    ticket.setStatus(TicketStatus.AVAILABLE);
+                    ticket.setTicketStatus(TicketStatus.AVAILABLE);
                     ticketRepository.save(ticket);
                 });
 

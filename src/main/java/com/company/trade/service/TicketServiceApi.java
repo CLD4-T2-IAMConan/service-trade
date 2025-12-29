@@ -13,9 +13,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Optional;
 
@@ -77,39 +79,45 @@ public class TicketServiceApi {
      * 티켓 상태를 지정된 새 상태로 변경합니다. (PUT /api/tickets/{id}/status/{newStatus})
      */
     public void updateTicketStatus(Long ticketId, String newStatus, String accessToken) {
-        String url = TICKET_SERVICE_URL + "/api/tickets/{ticketId}/status/{newStatus}";
+        // 1. UriComponentsBuilder를 사용하여 URL을 안전하게 생성 (슬래시 중복 방지)
+        String url = UriComponentsBuilder.fromHttpUrl(TICKET_SERVICE_URL)
+                .path("/api/tickets/{ticketId}/status/{newStatus}")
+                .buildAndExpand(ticketId, newStatus)
+                .toUriString();
 
+        log.info("[API-TICKET-PUT-START] 요청 URL: {}", url); // 디버깅을 위해 실제 URL 출력
 
         try {
             HttpHeaders headers = new HttpHeaders();
             if (accessToken != null) {
-                // "Bearer "가 이미 포함되어 있을 수도 있고 없을 수도 있으니 체크
                 String token = accessToken.startsWith("Bearer ") ? accessToken : "Bearer " + accessToken;
                 headers.set(HttpHeaders.AUTHORIZATION, token);
             }
 
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-            restTemplate.exchange(url, HttpMethod.PUT, requestEntity, Void.class, ticketId, newStatus);
-            // PUT 요청
-//            restTemplate.put(url, null, ticketId, newStatus);
+            // 이미 buildAndExpand를 했으므로 추가 인자 없이 호출
+            restTemplate.exchange(url, HttpMethod.PUT, requestEntity, Void.class);
+
 
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn("[API-TICKET-PUT-FAIL] 404 Not Found. 티켓 ID {}를 찾을 수 없음.", ticketId);
+            log.warn("[API-TICKET-PUT-FAIL] 404 Not Found. 티켓 ID {} 찾을 수 없음.", ticketId);
             throw new EntityNotFoundException("티켓 서비스에서 티켓 ID(" + ticketId + ")를 찾을 수 없습니다.");
 
         } catch (HttpClientErrorException e) {
-            // 400 Bad Request 등 오류
-            log.error("[API-TICKET-PUT-FAIL] HTTP Client Error (4XX). Status={}, ResponseBody={}",
-                    e.getStatusCode(), e.getResponseBodyAsString(), e); // 🚨 상태 코드 및 응답 본문 로깅
-
+            log.error("[API-TICKET-PUT-FAIL] 4XX 에러. 상태코드={}, 응답={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
             throw new RuntimeException("티켓 상태 변경 API 오류: " + e.getResponseBodyAsString());
 
-        } catch (Exception e) {
-            // 기타 연결 오류
-            log.error("[API-TICKET-PUT-FAIL] 연결 오류 발생: Message={}", e.getMessage(), e); // 🚨 메시지 및 스택 트레이스 로깅
+        } catch (ResourceAccessException e) {
+            // 네트워크 연결 실패 (타임아웃, 서버 꺼짐 등) 시 주로 발생하는 예외
+            log.error("[API-TICKET-PUT-FAIL] 서버 연결 불가. URL={}, 메시지={}", url, e.getMessage());
+            throw new RuntimeException("티켓 서비스 서버에 연결할 수 없습니다. 주소를 확인하세요.");
 
-            throw new RuntimeException("티켓 상태 변경 API 호출 중 연결 오류 발생: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("[API-TICKET-PUT-FAIL] 알 수 없는 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("티켓 상태 변경 중 예상치 못한 오류 발생: " + e.getMessage());
         }
     }
+
 }

@@ -1,16 +1,19 @@
 package com.company.trade.entity;
 
+import com.company.trade.entity.TicketStatus;
+import com.company.trade.entity.TradeType;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "ticket")
 @Getter
-@Setter // DealService에서 상태 변경을 위해 @Setter 추가 (혹은 상태 변경 메서드)
-@Builder
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Ticket {
 
     @Id
@@ -18,6 +21,7 @@ public class Ticket {
     @Column(name = "ticket_id")
     private Long ticketId;
 
+    // 티켓 기본 정보
     @Column(name = "event_name", nullable = false)
     private String eventName;
 
@@ -27,40 +31,58 @@ public class Ticket {
     @Column(name = "event_location", nullable = false)
     private String eventLocation;
 
+    // 소유자 정보 (외래키: users.user_id)
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
 
+    // 티켓 상태 ENUM 매핑
     @Enumerated(EnumType.STRING)
     @Column(name = "ticket_status", nullable = false)
-    private TicketStatus status; // DB 컬럼: ticket_status
+    private TicketStatus ticketStatus = TicketStatus.AVAILABLE;
 
+    // 가격 정보
     @Column(name = "original_price", nullable = false, precision = 10, scale = 0)
-    private Integer originalPrice; // Decimal(10,0)은 Java에서 Integer 또는 BigDecimal 사용 가능. 간단하게 Integer 사용.
+    private BigDecimal originalPrice;
 
-    @Column(name = "selling_price", nullable = true, precision = 10, scale = 0)
-    private Integer sellingPrice; // Decimal(10,0)은 Integer 사용.
+    @Column(name = "selling_price", precision = 10, scale = 0)
+    private BigDecimal sellingPrice;
 
-    @Column(name = "seat_info", length = 100, nullable = true)
+
+    // 티켓 상세 정보
+    @Column(name = "seat_info")
     private String seatInfo;
 
-    @Column(name = "ticket_type", length = 50, nullable = true)
+    @Column(name = "ticket_type")
     private String ticketType;
 
-    @Column(name = "created_at", updatable = false, nullable = false)
+    // 카테고리 ID (FK)
+    @Column(name = "category_id", nullable = false)
+    private Long categoryId;
+
+    // 이미지 (선택 사항)
+    @Column(name = "image1")
+    private String image1;
+
+    @Column(name = "image2")
+    private String image2;
+
+    // 상세 설명 (TEXT)
+    @Column(name = "description", columnDefinition = "TEXT", nullable = true)
+    private String description;
+
+    // 거래 방식 ENUM
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trade_type", nullable = false)
+    private TradeType tradeType;
+
+
+
+    // 타임스탬프
+    @Column(name = "created_at", insertable = false,  updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at" , insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
-    // --- 비즈니스 로직 편의 메서드 ---
-    /**
-     * Deal 요청이 들어왔을 때 티켓 상태를 DEALING으로 변경합니다.
-     */
-    public void markAsDealing() {
-        if (this.status != TicketStatus.AVAILABLE) {
-            throw new IllegalStateException("티켓 상태가 AVAILABLE이 아니므로 거래 요청을 진행할 수 없습니다. 현재 상태: " + this.status);
-        }
-        this.status = TicketStatus.RESERVED;
-        this.updatedAt = LocalDateTime.now();
-    }
+
 }
