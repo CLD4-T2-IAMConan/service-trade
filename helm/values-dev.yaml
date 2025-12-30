@@ -21,7 +21,7 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/backend-protocol: HTTP
   hosts:
-    - host: trade-service.local
+    - host: trade-service.passit.com
       paths:
         - path: /
           pathType: Prefix
@@ -40,11 +40,11 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 database:
   enabled: true
-  host: "passit-dev-aurora-cluster.cluster-cnqmcq6uwqa3.ap-northeast-2.rds.amazonaws.com"
+  host: passit-dev-aurora-cluster.cluster-cnqmcq6uwqa3.ap-northeast-2.rds.amazonaws.com
   port: 3306
   name: passit_db
-  user: admin
-  password: admin
+  user: passit_user
+  password: passit_password
 env:
   SPRING_PROFILES_ACTIVE: "production"
 livenessProbe:
@@ -59,5 +59,9 @@ readinessProbe:
     port: 8080
   initialDelaySeconds: 20
   periodSeconds: 5
+# Valkey 설정 (ElastiCache for Valkey)
 redis:
   host: "passit-dev-valkey.q2tpkl.ng.0001.apn2.cache.amazonaws.com"
+  port: 6379
+  password: ""
+  ssl: true
