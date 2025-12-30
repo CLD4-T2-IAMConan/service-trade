@@ -143,14 +143,17 @@ public class DealService {
 
 
     @Transactional
-    public void rejectDeal(Long dealId, Long sellerId, String cancelReason) { // 🚨 1. cancelReason 매개변수 추가
+    public void rejectDeal(Long dealId, Long sellerId, String cancelReason) {
+        // 🚨 0. 토큰 추출 (Ticket Service 호출 시 권한 인증을 위해 필요)
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String accessToken = (attributes != null) ? attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION) : null;
 
         // 1. Deal 요청 조회
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new EntityNotFoundException("요청하신 거래(Deal)를 찾을 수 없습니다."));
 
         // 2. 비즈니스 유효성 검사
-        // 2-1. 판매자 권한 검사 (현재 로그인한 사용자가 티켓의 주인인지)
+        // 2-1. 판매자 권한 검사
         if (!deal.getSellerId().equals(sellerId)) {
             throw new IllegalStateException("해당 거래를 거절할 권한이 없습니다.");
         }
@@ -160,48 +163,48 @@ public class DealService {
             throw new IllegalStateException("현재 거래 상태(" + deal.getDealStatus() + ")에서는 거절할 수 없습니다.");
         }
 
-        // 3. Deal 상태 변경: REJECTED 및 거절 사유 저장
-        deal.setDealStatus(DealStatus.REJECTED);
+        // ===================================================================
+        // 3. Ticket 상태 변경 (RESERVED -> AVAILABLE) - 외부 API 호출
+        // ===================================================================
+        try {
+            // 🚨 중요: 직접 Repository를 쓰지 않고 API를 호출합니다.
+            // Ticket Service 내부 로직에서 RESERVED 인지 검증하므로 여기서는 호출만 합니다.
+            ticketServiceApi.updateTicketStatus(deal.getTicketId(), TicketStatus.AVAILABLE.name(), accessToken);
 
-        // 🚨 2. Deal 엔티티에 거절 사유(cancelReason) 저장
-        // Deal 엔티티에 'cancelReason' 필드가 존재하고 setter가 있다고 가정합니다.
-        deal.setCancelReason(cancelReason);
-
-        dealRepository.save(deal);
-
-        // 4. Ticket 상태 변경: RESERVED -> AVAILABLE
-        // 티켓을 조회하고 상태를 변경합니다.
-        Ticket ticket = ticketRepository.findById(deal.getTicketId())
-                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
-
-        // 4-1. 티켓 상태 검사 (RESERVED 상태일 때만 AVAILABLE로 변경)
-        if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
-            throw new IllegalStateException("티켓 상태가 RESERVED가 아니므로 AVAILABLE로 변경할 수 없습니다.");
+        } catch (RuntimeException e) {
+            log.error("[REJECT-DEAL-ERROR] 티켓 상태 복구 API 호출 실패: {}", e.getMessage());
+            throw new RuntimeException("티켓 상태를 AVAILABLE로 변경하는 데 실패했습니다: " + e.getMessage());
         }
 
-        // 4-2. 상태 변경
-        ticket.setTicketStatus(TicketStatus.AVAILABLE);
-        ticketRepository.save(ticket);
+        // ===================================================================
+        // 4. Deal 상태 변경 및 저장 (내부 DB)
+        // ===================================================================
+        deal.setDealStatus(DealStatus.REJECTED);
+        deal.setCancelReason(cancelReason);
+
+        try {
+            dealRepository.save(deal);
+            log.info("[REJECT-DEAL-SUCCESS] 거래 거절 완료. Deal ID: {}, Ticket ID: {}", dealId, deal.getTicketId());
+        } catch (Exception e) {
+            log.error("[REJECT-DEAL-ERROR] Deal 상태 저장 실패: {}", e.getMessage());
+            throw new RuntimeException("거래 거절 상태 저장 중 오류가 발생했습니다.");
+        }
     }
 
-    /**
-     * 거래를 수락하고, 결제 엔티티를 생성한 후, Deal 상태를 ACCEPTED로 변경합니다.
-     * @param dealId 수락할 거래 ID
-     * @param sellerId 요청한 판매자 ID (권한 검증용)
-     */
     @Transactional
     public void acceptDeal(Long dealId, Long sellerId) {
-
         log.info("[DEAL_ACCEPT_START] 거래 수락 시작. Deal ID: {}, Seller ID: {}", dealId, sellerId);
 
+        // 🚨 0. 토큰 추출 (Ticket/Payment Service 호출 시 인증 정보 전달을 위해 필요)
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String accessToken = (attributes != null) ? attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION) : null;
+
+        // 1. Deal 요청 조회
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new EntityNotFoundException("요청하신 거래(Deal)를 찾을 수 없습니다."));
 
-        log.debug("[DEAL_ACCEPT_INFO] Deal 조회 완료. Ticket ID: {}, Current Status: {}",
-                deal.getTicketId(), deal.getDealStatus());
-
         // ===================================================================
-        // 1. 권한 및 상태 검증
+        // 1. 권한 및 상태 검증 (내부 DB 로직)
         // ===================================================================
         if (!deal.getSellerId().equals(sellerId)) {
             log.warn("[AUTH_FAIL] 권한 불일치. 요청 Seller ID: {}, 거래 Owner ID: {}", sellerId, deal.getSellerId());
@@ -213,73 +216,61 @@ public class DealService {
         }
 
         // ===================================================================
-        // 2. 티켓 가격 조회 및 결제 금액 계산
+        // 2. 티켓 가격 조회 및 결제 금액 계산 (외부 API 호출 포함)
         // ===================================================================
         BigDecimal ticketPrice;
-
         try {
-            // 2-1. TicketServiceApi를 통해 티켓 정보 조회
+            // 🚨 TicketServiceApi를 호출할 때 토큰을 함께 넘길 수 있도록 구조가 잡혀있어야 합니다.
+            // 만약 getTicketById도 토큰이 필요하다면 메서드 시그니처를 수정하여 accessToken을 넘겨주세요.
             TicketResponse ticket = ticketServiceApi.getTicketById(deal.getTicketId())
                     .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
 
-            log.debug("[TICKET_INFO_CHECK] 조회된 Ticket ID: {}, Selling Price (Raw): {}",
-                    ticket.getTicketId(), ticket.getSellingPrice());
-
-            // 2-2. 티켓 가격 추출 (ticketPrice가 null인지 확인)
             ticketPrice = ticket.getSellingPrice();
 
-            // 🚨 [핵심 로그 1] 티켓 가격이 null인지 확인
             if (ticketPrice == null) {
-                log.error("[PRICE_NULL_ERROR] TicketService에서 받은 가격이 NULL입니다. Ticket ID: {}", deal.getTicketId());
+                log.error("[PRICE_NULL_ERROR] TicketService에서 받은 가격이 NULL입니다.");
                 throw new RuntimeException("티켓 가격 정보가 누락되었습니다.");
             }
-
-        } catch (EntityNotFoundException e) {
-            // 티켓이 DB에 없는 경우
-            log.error("[LOG-PRICE-ERROR] 티켓을 찾을 수 없습니다. Deal ID: {}, Ticket ID: {}", dealId, deal.getTicketId());
-            throw new EntityNotFoundException(e.getMessage());
         } catch (Exception e) {
-            // API 연결 오류, JSON 파싱 오류 등 모든 외부 통신 오류를 포착
-            log.error("[LOG-API-ERROR] Ticket API 호출 중 예외 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("티켓 가격 정보 조회 중 통신 오류가 발생했습니다.", e);
+            log.error("[LOG-API-ERROR] Ticket API 호출 중 예외 발생: {}", e.getMessage());
+            throw new RuntimeException("티켓 정보 조회 중 오류가 발생했습니다.", e);
         }
 
-        // 2-3. 총 결제 금액 계산: (티켓 가격 * 수량)
-        log.debug("[CALC_CHECK] Price: {}, Quantity: {}", ticketPrice, deal.getQuantity());
-
-        // 🚨 [핵심 로그 2] 수량(Quantity) 필드에 문제가 없는지 확인
+        // 결제 금액 계산
         if (deal.getQuantity() == null || deal.getQuantity() <= 0) {
-            log.error("[QUANTITY_ERROR] 거래 수량 값이 유효하지 않습니다. Quantity: {}", deal.getQuantity());
             throw new IllegalStateException("유효하지 않은 거래 수량입니다.");
         }
-
         BigDecimal paymentAmount = ticketPrice.multiply(BigDecimal.valueOf(deal.getQuantity()));
-        log.info("[PAYMENT_AMOUNT] 계산된 최종 결제 금액: {}", paymentAmount);
-
 
         // ===================================================================
         // 3. Payment Service 호출 (Payment 엔티티 생성)
         // ===================================================================
         try {
-            // Payment 엔티티 생성 및 DB 저장 (PaymentStatus: PENDING)
+            // 🚨 paymentsService 내부에서도 외부 API(결제 서비스 등)를 호출한다면
+            // 여기서 accessToken을 인자로 넘겨주도록 수정하는 것이 좋습니다.
+            // 예: paymentsService.createPayment(deal, paymentAmount, accessToken);
             paymentsService.createPayment(deal, paymentAmount);
-            log.info("[LOG-PAYMENT-SUCCESS] Deal ID {}에 대한 Payment가 성공적으로 생성되었습니다.", dealId);
+            log.info("[LOG-PAYMENT-SUCCESS] Deal ID {}에 대한 Payment 생성 완료.", dealId);
 
         } catch (Exception e) {
-            // 🚨 [핵심 로그 3] Payment DB 저장 또는 필수 필드 누락 오류 포착
-            log.error("[LOG-PAYMENT-FAIL] Payment 생성/DB 저장 실패 (Deal ID {}): {}", dealId, e.getMessage(), e);
-            log.error("[LOG-PAYMENT-FAIL] 상세 스택 트레이스:", e); // 상세 스택 트레이스 로깅
-            throw new RuntimeException("결제 요청 생성 중 DB 또는 필수 필드 누락 오류가 발생했습니다.", e);
+            log.error("[LOG-PAYMENT-FAIL] Payment 생성 실패: {}", e.getMessage());
+            throw new RuntimeException("결제 요청 생성 중 오류가 발생했습니다.", e);
         }
 
         // ===================================================================
-        // 4. Deal 상태 변경: PENDING -> ACCEPTED
+        // 4. Deal 상태 변경 및 저장 (내부 DB)
         // ===================================================================
         deal.setDealStatus(DealStatus.ACCEPTED);
-        dealRepository.save(deal);
 
-        log.info("[DEAL_ACCEPT_END] 거래 수락 및 상태 변경 완료. Deal ID: {} -> ACCEPTED", dealId);
+        try {
+            dealRepository.save(deal);
+            log.info("[DEAL_ACCEPT_END] 거래 수락 완료. Deal ID: {} -> ACCEPTED", dealId);
+        } catch (Exception e) {
+            log.error("[DEAL_SAVE_ERROR] Deal 상태 저장 실패: {}", e.getMessage());
+            throw new RuntimeException("거래 상태 업데이트 중 오류가 발생했습니다.");
+        }
     }
+
 
     @Transactional
     public DealResponse updateDealStatus(Long dealId, String newStatusString) {
