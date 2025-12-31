@@ -33,6 +33,8 @@ public class DealResponse {
     // 현재 거래 상태 (예: PENDING)
     private DealStatus dealStatus;
 
+    private Integer quantity;
+
     /**
      * Entity -> DTO 변환을 위한 정적 팩토리 메서드
      */
@@ -44,6 +46,7 @@ public class DealResponse {
                 .buyerId(deal.getBuyerId())
                 .dealAt(deal.getDealAt())
                 .dealStatus(deal.getDealStatus())
+                .quantity(deal.getQuantity())
                 .build();
     }
 }

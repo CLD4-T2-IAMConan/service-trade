@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
-import java.security.Principal;
 
 
 @Slf4j
@@ -188,11 +187,9 @@ public class DealController {
     @PutMapping("/{dealId}/cancel")
     public ResponseEntity<?> cancelDeal(
             @PathVariable Long dealId,
-            @RequestBody DealRejectRequest request) {
+            @RequestParam Long buyerId) {
 
         try {
-            Long buyerId = request.getCurrentUserId();
-
             dealService.cancelDeal(dealId, buyerId);
 
             return ResponseEntity.ok().body("거래가 성공적으로 취소되었습니다.");

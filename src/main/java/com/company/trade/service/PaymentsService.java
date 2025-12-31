@@ -108,8 +108,8 @@ public class PaymentsService {
 
         // 3. 연결된 Ticket 엔티티 조회
         // (참고: Deal이 Accepted 상태라면 Ticket 상태는 RESERVED 또는 SOLD 상태여야 함)
-        Ticket ticket = ticketRepository.findById(deal.getTicketId())
-                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓을 찾을 수 없습니다."));
+        TicketResponse ticket = ticketServiceApi.getTicketById(deal.getTicketId())
+                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓 정보를 찾을 수 없습니다."));
 
         // 4. DTO로 변환하여 반환
         return PaymentsDetailResponse.from(payments, deal, ticket);
@@ -134,14 +134,17 @@ public class PaymentsService {
                 .orElseThrow(() -> new EntityNotFoundException("연결된 거래(Deal) 정보를 찾을 수 없습니다. (Deal ID: " + dealId + ")"));
 
         // 3. Ticket 엔티티 조회 (상품명 획득)
-        Ticket ticket = ticketRepository.findById(deal.getTicketId())
-                .orElseThrow(() -> new EntityNotFoundException("연결된 티켓 정보를 찾을 수 없습니다."));
+        TicketResponse ticket = ticketServiceApi.getTicketById(deal.getTicketId())
+                .orElseThrow(() -> new EntityNotFoundException("티켓 정보를 불러올 수 없어 결제를 진행할 수 없습니다."));
 
         // 4. 금액 변환 및 Null 체크
-        if (payments.getPrice() == null) {
-            throw new IllegalStateException("Payments 엔티티의 price 필드가 NULL입니다.");
+        if (ticket.getSellingPrice() == null) {
+            throw new IllegalStateException("티켓 정보에 가격이 설정되어 있지 않습니다.");
         }
-        Long amountLong = payments.getPrice().longValue();
+
+        // TicketResponse의 price가 BigDecimal인 경우 .longValue() 사용
+        // 만약 int/Integer라면 바로 사용하거나 형변환
+        Long amountLong = ticket.getSellingPrice().longValue();
 
         // 5. NICEPAY 연동 파라미터 생성
 
@@ -266,7 +269,7 @@ public class PaymentsService {
         // 예를 들어, PAID 상태로 변경 시 연결된 Deal의 상태도 PAID로 변경해야 합니다.
         if (newStatus == PaymentsStatus.PAID) {
             // dealService.updateDealStatus(payments.getDealId(), DealStatus.PAID.name());
-        } else if (newStatus == PaymentsStatus.CANCELED) {
+        } else if (newStatus == PaymentsStatus.CANCELLED) {
             // 취소/환불 로직 (Deal 상태 CANCELED로, Ticket 상태 AVAILABLE로 복원)
             // dealService.cancelDeal(payments.getDealId(), payments.getBuyerId()); // 적절한 취소 메서드 호출
         }
@@ -289,14 +292,14 @@ public class PaymentsService {
                 // 결제 대기 상태: 결제 완료(PAID), 결제 실패(FAILED), 취소(CANCELED)로만 변경 가능
                 return target == PaymentsStatus.PAID ||
                         target == PaymentsStatus.FAILED ||
-                        target == PaymentsStatus.CANCELED;
+                        target == PaymentsStatus.CANCELLED;
 
             case PAID:
                 // 결제 완료 상태: 환불/취소(CANCELED)로만 변경 가능 (PAID -> FAILED는 불가능)
-                return target == PaymentsStatus.CANCELED;
+                return target == PaymentsStatus.CANCELLED;
 
             case FAILED:
-            case CANCELED:
+            case CANCELLED:
                 // 최종 상태: 실패, 취소 상태에서는 다른 상태로 변경 불가능 (결제 재시도 등은 새 Payments 객체로 처리)
                 return false;
 
