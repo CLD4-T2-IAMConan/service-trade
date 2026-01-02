@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     show-sql: true
     properties:
       hibernate:
@@ -18,7 +18,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
 server:
-  port: 8083
+  port: 8080
 
 management:
   endpoints:
@@ -31,7 +31,7 @@ management:
 
 logging:
   level:
-    com.company.template: DEBUG
+    com.company.trade: DEBUG
     org.springframework: INFO
 
 # 외부 서비스 URL 설정

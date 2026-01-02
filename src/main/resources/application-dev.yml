@@ -1,19 +1,21 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/template_db
-    username: postgres
-    password: postgres
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:passit_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USER:passit_user}
+    password: ${DB_PASSWORD:passit_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 
 logging:
   level:
-    com.company.template: DEBUG
+    com.company.trade: DEBUG
     org.springframework: DEBUG
     org.hibernate.SQL: DEBUG
