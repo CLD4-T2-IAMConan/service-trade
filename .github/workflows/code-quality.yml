@@ -11,18 +11,22 @@ jobs:
     steps:
       - name: Checkout service code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
-      - name: Checkout main repository for common libraries
+      - name: Checkout main repository (for common/sns-lib)
         uses: actions/checkout@v4
         with:
           repository: CLD4-T2-IAMConan/Passit
-          path: main-repo
+          path: passit-main
           token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+          submodules: true
 
-      - name: Copy common libraries
+      - name: Copy common library to build context
         run: |
           mkdir -p common
-          cp -r main-repo/common/sns-lib common/
+          cp -r passit-main/common/sns-lib common/sns-lib
+          ls -la common/sns-lib
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4

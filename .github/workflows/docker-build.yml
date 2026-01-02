@@ -20,19 +20,22 @@ jobs:
     steps:
       - name: Checkout service code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
-      - name: Checkout common library
+      - name: Checkout main repository (for common/sns-lib)
         uses: actions/checkout@v4
         with:
           repository: CLD4-T2-IAMConan/Passit
-          sparse-checkout: common
-          sparse-checkout-cone-mode: false
-          path: passit-common
+          path: passit-main
+          token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+          submodules: true
 
       - name: Copy common library to build context
         run: |
-          cp -r passit-common/common ./common
-          ls -la common
+          mkdir -p common
+          cp -r passit-main/common/sns-lib common/sns-lib
+          ls -la common/sns-lib
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
