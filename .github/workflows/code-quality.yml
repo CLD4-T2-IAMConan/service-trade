@@ -19,7 +19,7 @@ jobs:
         with:
           repository: CLD4-T2-IAMConan/Passit
           path: passit-main
-          ref: main
+          ref: develop
           fetch-depth: 1
           token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
 
