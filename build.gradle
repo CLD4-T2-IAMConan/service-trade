@@ -44,6 +44,9 @@ dependencies {
 
     // 💡 NICEPAY 승인 로직의 SHA-256 암호화에 필요
     implementation 'commons-codec:commons-codec:1.15'
+
+    // SNS Event Library
+    implementation project(':common:sns-lib')
 }
 
 tasks.named('test') {

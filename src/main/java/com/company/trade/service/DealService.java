@@ -1,5 +1,7 @@
 package com.company.trade.service;
 
+import com.company.sns.EventMessage;
+import com.company.sns.SnsEventPublisher;
 import com.company.trade.dto.DealDetailResponse;
 import com.company.trade.dto.DealRequest;
 import com.company.trade.dto.DealResponse;
@@ -20,6 +22,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 class EntityNotFoundException extends RuntimeException {
@@ -43,6 +46,7 @@ public class DealService {
     private final DealRepository dealRepository;
     private final PaymentsRepository paymentsRepository;
     private final PaymentsService paymentsService;
+    private final SnsEventPublisher eventPublisher;
 
     /**
      * [Transactional] 새로운 거래 요청을 생성하고, 티켓 상태를 'RESERVED'로 변경합니다.
@@ -123,7 +127,27 @@ public class DealService {
             throw new RuntimeException("거래 정보 DB 저장 중 치명적인 오류 발생.", e); // 🚨 500 오류 유발 가능성
         }
 
-        // 4. 응답 DTO 반환
+        // 4. 이벤트 발행: deal.requested
+        try {
+            EventMessage event = EventMessage.create(
+                "deal.requested",
+                "service-trade",
+                Map.of(
+                    "dealId", savedDeal.getDealId(),
+                    "ticketId", savedDeal.getTicketId(),
+                    "buyerId", savedDeal.getBuyerId(),
+                    "sellerId", savedDeal.getSellerId(),
+                    "quantity", savedDeal.getQuantity()
+                )
+            );
+            eventPublisher.publishAsync("deal-events", event);
+            log.info("[SNS-EVENT] deal.requested 이벤트 발행 완료. Deal ID: {}", savedDeal.getDealId());
+        } catch (Exception e) {
+            log.error("[SNS-ERROR] deal.requested 이벤트 발행 실패: {}", e.getMessage());
+            // 이벤트 발행 실패는 거래 생성을 중단시키지 않음
+        }
+
+        // 5. 응답 DTO 반환
         return DealResponse.fromEntity(savedDeal);
     }
 
@@ -187,6 +211,24 @@ public class DealService {
         } catch (Exception e) {
             log.error("[REJECT-DEAL-ERROR] Deal 상태 저장 실패: {}", e.getMessage());
             throw new RuntimeException("거래 거절 상태 저장 중 오류가 발생했습니다.");
+        }
+
+        // 이벤트 발행: deal.rejected
+        try {
+            EventMessage event = EventMessage.create(
+                "deal.rejected",
+                "service-trade",
+                Map.of(
+                    "dealId", dealId,
+                    "ticketId", deal.getTicketId(),
+                    "sellerId", sellerId,
+                    "cancelReason", cancelReason != null ? cancelReason : ""
+                )
+            );
+            eventPublisher.publishAsync("deal-events", event);
+            log.info("[SNS-EVENT] deal.rejected 이벤트 발행 완료. Deal ID: {}", dealId);
+        } catch (Exception e) {
+            log.error("[SNS-ERROR] deal.rejected 이벤트 발행 실패: {}", e.getMessage());
         }
     }
 
@@ -267,6 +309,25 @@ public class DealService {
         } catch (Exception e) {
             log.error("[DEAL_SAVE_ERROR] Deal 상태 저장 실패: {}", e.getMessage());
             throw new RuntimeException("거래 상태 업데이트 중 오류가 발생했습니다.");
+        }
+
+        // 이벤트 발행: deal.accepted
+        try {
+            EventMessage event = EventMessage.create(
+                "deal.accepted",
+                "service-trade",
+                Map.of(
+                    "dealId", dealId,
+                    "ticketId", deal.getTicketId(),
+                    "buyerId", deal.getBuyerId(),
+                    "sellerId", sellerId,
+                    "paymentAmount", paymentAmount.toString()
+                )
+            );
+            eventPublisher.publishAsync("deal-events", event);
+            log.info("[SNS-EVENT] deal.accepted 이벤트 발행 완료. Deal ID: {}", dealId);
+        } catch (Exception e) {
+            log.error("[SNS-ERROR] deal.accepted 이벤트 발행 실패: {}", e.getMessage());
         }
     }
 
@@ -400,6 +461,23 @@ public class DealService {
         dealRepository.save(deal);
 
         log.info("[CANCEL_DEAL_END] 거래 취소 완료. Deal ID: {} -> CANCELED", dealId);
+
+        // 이벤트 발행: deal.cancelled
+        try {
+            EventMessage event = EventMessage.create(
+                "deal.cancelled",
+                "service-trade",
+                Map.of(
+                    "dealId", dealId,
+                    "ticketId", deal.getTicketId(),
+                    "buyerId", buyerId
+                )
+            );
+            eventPublisher.publishAsync("deal-events", event);
+            log.info("[SNS-EVENT] deal.cancelled 이벤트 발행 완료. Deal ID: {}", dealId);
+        } catch (Exception e) {
+            log.error("[SNS-ERROR] deal.cancelled 이벤트 발행 실패: {}", e.getMessage());
+        }
     }
 
 
@@ -480,6 +558,24 @@ public class DealService {
         } catch (Exception e) {
             log.error("[DEAL_SAVE_ERROR] Deal 상태 저장 실패: {}", e.getMessage());
             throw new RuntimeException("거래 완료 처리 중 데이터베이스 오류가 발생했습니다.");
+        }
+
+        // 이벤트 발행: deal.confirmed
+        try {
+            EventMessage event = EventMessage.create(
+                "deal.confirmed",
+                "service-trade",
+                Map.of(
+                    "dealId", dealId,
+                    "ticketId", ticketId,
+                    "buyerId", userId,
+                    "sellerId", deal.getSellerId()
+                )
+            );
+            eventPublisher.publishAsync("deal-events", event);
+            log.info("[SNS-EVENT] deal.confirmed 이벤트 발행 완료. Deal ID: {}", dealId);
+        } catch (Exception e) {
+            log.error("[SNS-ERROR] deal.confirmed 이벤트 발행 실패: {}", e.getMessage());
         }
     }
 }

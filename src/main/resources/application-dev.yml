@@ -19,3 +19,15 @@ logging:
     com.company.trade: DEBUG
     org.springframework: DEBUG
     org.hibernate.SQL: DEBUG
+
+# AWS Configuration
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+  sns:
+    topics:
+      deal-events: ${SNS_DEAL_EVENTS_TOPIC_ARN:arn:aws:sns:ap-northeast-2:727646470302:passit-dev-deal-events}
+      ticket-events: ${SNS_TICKET_EVENTS_TOPIC_ARN:arn:aws:sns:ap-northeast-2:727646470302:passit-dev-ticket-events}
+      payment-events: ${SNS_PAYMENT_EVENTS_TOPIC_ARN:arn:aws:sns:ap-northeast-2:727646470302:passit-dev-payment-events}
+  sqs:
+    queues:
+      trade-ticket-events: ${SQS_TRADE_TICKET_EVENTS_QUEUE_URL:https://sqs.ap-northeast-2.amazonaws.com/727646470302/passit-dev-trade-ticket-events}
