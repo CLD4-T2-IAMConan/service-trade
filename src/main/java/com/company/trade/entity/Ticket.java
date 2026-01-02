@@ -38,6 +38,7 @@ public class Ticket {
     // 티켓 상태 ENUM 매핑
     @Enumerated(EnumType.STRING)
     @Column(name = "ticket_status", nullable = false)
+    @Builder.Default
     private TicketStatus ticketStatus = TicketStatus.AVAILABLE;
 
     // 가격 정보

@@ -47,7 +47,7 @@ public class DealServiceTest {
         // 1-1. 시작 상태 검증: 티켓이 AVAILABLE 상태인지 DB에서 확인
         Ticket initialTicket = ticketRepository.findById(AVAILABLE_TICKET_ID)
                 .orElseThrow(() -> new AssertionError("테스트를 위한 AVAILABLE 티켓 ID를 DB에서 찾을 수 없습니다."));
-        assertThat(initialTicket.getStatus()).isEqualTo(TicketStatus.AVAILABLE);
+        assertThat(initialTicket.getTicketStatus()).isEqualTo(TicketStatus.AVAILABLE);
 
         // 1-2. Deal 요청 DTO 준비 (구매자 ID 500L이 요청)
         DealRequest request = DealRequest.builder()
@@ -74,7 +74,7 @@ public class DealServiceTest {
         // 티켓을 다시 조회하여 상태가 DEALING으로 바뀌었는지 검증
         Ticket updatedTicket = ticketRepository.findById(AVAILABLE_TICKET_ID)
                 .orElseThrow();
-        assertThat(updatedTicket.getStatus()).isEqualTo(TicketStatus.RESERVED);
+        assertThat(updatedTicket.getTicketStatus()).isEqualTo(TicketStatus.RESERVED);
 
         // 3. (추가) Deal ID가 정상적으로 생성되었는지 확인
         assertThat(createdDeal.get().getDealId()).isNotNull();
