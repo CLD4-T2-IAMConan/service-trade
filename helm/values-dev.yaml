@@ -8,7 +8,7 @@ imagePullSecrets:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 8080
+  targetPort: 8083
 ingress:
   enabled: true
   className: alb
@@ -51,7 +51,7 @@ env:
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
-    port: 8080
+    port: 8083
   initialDelaySeconds: 60
   periodSeconds: 10
   timeoutSeconds: 3
@@ -59,7 +59,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
-    port: 8080
+    port: 8083
   initialDelaySeconds: 50
   periodSeconds: 5
   timeoutSeconds: 3
