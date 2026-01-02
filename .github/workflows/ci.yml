@@ -11,8 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout service code
         uses: actions/checkout@v4
+
+      - name: Checkout main repository for common libraries
+        uses: actions/checkout@v4
+        with:
+          repository: CLD4-T2-IAMConan/Passit
+          path: main-repo
+          token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Copy common libraries
+        run: |
+          mkdir -p common
+          cp -r main-repo/common/sns-lib common/
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4

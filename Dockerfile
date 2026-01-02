@@ -4,7 +4,8 @@ WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY gradle gradle
 COPY src src
-# Copy common libraries if they exist
+# Copy common libraries if they exist (for CI/CD builds)
+# Note: In CI/CD, common/sns-lib is copied before Docker build
 COPY common common
 RUN gradle build --no-daemon -x test
 
