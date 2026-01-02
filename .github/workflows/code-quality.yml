@@ -19,14 +19,37 @@ jobs:
         with:
           repository: CLD4-T2-IAMConan/Passit
           path: passit-main
+          ref: main
+          fetch-depth: 1
           token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
-          submodules: true
 
-      - name: Copy common library to build context
+      - name: Verify and copy common library
         run: |
-          mkdir -p common
-          cp -r passit-main/common/sns-lib common/sns-lib
-          ls -la common/sns-lib
+          echo "Checking passit-main directory structure..."
+          ls -la passit-main/ || echo "passit-main not found"
+
+          if [ -d "passit-main/common" ]; then
+            echo "Found common directory:"
+            ls -la passit-main/common/
+          else
+            echo "Error: common directory not found in passit-main"
+            echo "Available directories in passit-main:"
+            find passit-main -maxdepth 1 -type d | head -20
+            exit 1
+          fi
+
+          if [ -d "passit-main/common/sns-lib" ]; then
+            echo "Found common/sns-lib, copying..."
+            mkdir -p common
+            cp -r passit-main/common/sns-lib common/sns-lib
+            echo "Copied common/sns-lib:"
+            ls -la common/sns-lib
+          else
+            echo "Error: common/sns-lib not found in passit-main"
+            echo "Available directories in passit-main/common:"
+            find passit-main/common -maxdepth 1 -type d 2>/dev/null | head -20
+            exit 1
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
