@@ -14,7 +14,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -52,3 +52,26 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Helm values in service repository
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="sha-${SHORT_SHA}"
+
+          VALUES_FILE="helm/values-dev.yaml"
+          if [ -f "$VALUES_FILE" ]; then
+            if command -v yq &> /dev/null; then
+              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_FILE"
+            else
+              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_FILE"
+              rm -f "${VALUES_FILE}.bak"
+            fi
+            
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git add "$VALUES_FILE"
+            git commit -m "chore: update image tag to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
+            git push origin main
+          else
+            echo "⚠️  Helm values file not found: $VALUES_FILE"
+          fi

@@ -41,6 +41,28 @@ spec:
             secretKeyRef:
               name: {{ include "template-service.fullname" . }}-secret
               key: db-password
+        {{- if .Values.redis }}
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "template-service.fullname" . }}-config
+              key: redis.host
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "template-service.fullname" . }}-config
+              key: redis.port
+        - name: REDIS_SSL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "template-service.fullname" . }}-config
+              key: redis.ssl
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "template-service.fullname" . }}-secret
+              key: redis-password
+        {{- end }}
         {{- range $key, $value := .Values.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
