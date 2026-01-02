@@ -18,8 +18,21 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout service code
         uses: actions/checkout@v4
+
+      - name: Checkout common library
+        uses: actions/checkout@v4
+        with:
+          repository: CLD4-T2-IAMConan/Passit
+          sparse-checkout: common
+          sparse-checkout-cone-mode: false
+          path: passit-common
+
+      - name: Copy common library to build context
+        run: |
+          cp -r passit-common/common ./common
+          ls -la common
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

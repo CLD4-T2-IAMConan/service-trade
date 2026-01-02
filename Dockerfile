@@ -4,6 +4,8 @@ WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY gradle gradle
 COPY src src
+# Copy common libraries if they exist
+COPY common common
 RUN gradle build --no-daemon -x test
 
 # Runtime stage
