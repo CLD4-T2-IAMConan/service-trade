@@ -46,7 +46,15 @@ dependencies {
     implementation 'commons-codec:commons-codec:1.15'
 
     // SNS Event Library
+    // Try to use project dependency first, fallback to maven local
     implementation project(':common:sns-lib')
+    // Alternative: use maven local if project dependency fails
+    // implementation 'com.company:sns-lib:1.0.0'
+}
+
+// Publish common:sns-lib to local Maven repository before building
+tasks.named('compileJava') {
+    dependsOn(':common:sns-lib:publishToMavenLocal')
 }
 
 tasks.named('test') {
