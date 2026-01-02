@@ -47,6 +47,7 @@ database:
   password: PassitDevPassword123!
 env:
   SPRING_PROFILES_ACTIVE: "production"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
