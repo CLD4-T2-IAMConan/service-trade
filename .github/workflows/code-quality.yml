@@ -61,6 +61,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Build and publish common/sns-lib to Maven local
+        run: |
+          cd common/sns-lib
+          chmod +x ../../gradlew || true
+          ../../gradlew publishToMavenLocal --no-daemon || ./gradlew publishToMavenLocal --no-daemon
+          cd ../..
+
       - name: Check code style
         run: ./gradlew check --no-daemon
 

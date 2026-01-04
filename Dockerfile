@@ -1,12 +1,17 @@
 # Build stage
 FROM gradle:8.5-jdk17 AS build
 WORKDIR /app
+
+# Copy common/sns-lib first and publish to Maven local
+COPY common/sns-lib common/sns-lib
+WORKDIR /app/common/sns-lib
+RUN gradle publishToMavenLocal --no-daemon
+
+# Build service-trade
+WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY gradle gradle
 COPY src src
-# Copy common libraries if they exist (for CI/CD builds)
-# Note: In CI/CD, common/sns-lib is copied before Docker build
-COPY common common
 RUN gradle build --no-daemon -x test
 
 # Runtime stage
