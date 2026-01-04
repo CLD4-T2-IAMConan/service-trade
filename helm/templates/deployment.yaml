@@ -67,6 +67,10 @@ spec:
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        envFrom:
+        - configMapRef:
+            name: trade-aws-config
+            optional: true
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         readinessProbe:
