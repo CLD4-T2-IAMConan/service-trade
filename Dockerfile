@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy common/sns-lib first and publish to Maven local
 COPY common/sns-lib common/sns-lib
 WORKDIR /app/common/sns-lib
+# Ensure settings.gradle exists (it should be copied with the directory)
 RUN gradle publishToMavenLocal --no-daemon
 
 # Build service-trade

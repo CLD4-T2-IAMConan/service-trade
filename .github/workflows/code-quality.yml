@@ -64,8 +64,13 @@ jobs:
       - name: Build and publish common/sns-lib to Maven local
         run: |
           cd common/sns-lib
-          chmod +x ../../gradlew || true
-          ../../gradlew publishToMavenLocal --no-daemon || ./gradlew publishToMavenLocal --no-daemon
+          # Use gradle wrapper from service-trade or system gradle
+          if [ -f "../../gradlew" ]; then
+            chmod +x ../../gradlew
+            ../../gradlew publishToMavenLocal --no-daemon
+          else
+            gradle publishToMavenLocal --no-daemon
+          fi
           cd ../..
 
       - name: Check code style
