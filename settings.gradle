@@ -1,1 +1,5 @@
 rootProject.name = 'trade-service'
+
+// common/sns-lib을 포함하여 publish 가능하도록 설정
+include 'common:sns-lib'
+project(':common:sns-lib').projectDir = file('../common/sns-lib')

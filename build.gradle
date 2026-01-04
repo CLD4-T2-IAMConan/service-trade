@@ -49,6 +49,14 @@ dependencies {
     // SNS Event Library
     // Use Maven local dependency (common-sns-lib is published to mavenLocal before build)
     implementation 'com.company:sns-lib:1.0.0'
+    
+    // AWS SDK for SNS/SQS (SnsConfig에서 사용)
+    implementation 'software.amazon.awssdk:sns:2.20.0'
+    implementation 'software.amazon.awssdk:sqs:2.20.0'
+    
+    // Jackson for ObjectMapper
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2'
 }
 
 tasks.named('test') {
