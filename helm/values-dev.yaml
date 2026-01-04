@@ -66,7 +66,7 @@ readinessProbe:
   failureThreshold: 3
 # Valkey 설정 (ElastiCache for Valkey)
 redis:
-  host: "passit-dev-valkey.q2tpkl.ng.0001.apn2.cache.amazonaws.com"
+  host: "passit-dev-valkey-001.ri85pe.0001.apn2.cache.amazonaws.com"
   port: 6379
   password: ""
   ssl: true
