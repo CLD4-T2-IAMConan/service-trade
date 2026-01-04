@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.company.trade", "com.company.sns"})
+@ComponentScan(basePackages = {"com.company.trade", "com.company.sns", "com.company.sns.config"})
 public class TradeApplication {
 
     public static void main(String[] args) {
