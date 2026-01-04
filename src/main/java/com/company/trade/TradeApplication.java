@@ -1,13 +1,13 @@
 package com.company.trade;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
+@ComponentScan(basePackages = {"com.company.trade", "com.company.sns"})
 public class TradeApplication {
 
     public static void main(String[] args) {
