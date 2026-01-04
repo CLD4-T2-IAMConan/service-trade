@@ -43,8 +43,8 @@ database:
   host: passit-dev-aurora-cluster.cluster-crkykwekkr0w.ap-northeast-2.rds.amazonaws.com
   port: 3306
   name: passit_db
-  user: admin
-  password: PassitDevPassword123!
+  user: passit_user
+  password: passit_password
 env:
   SPRING_PROFILES_ACTIVE: "production"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
