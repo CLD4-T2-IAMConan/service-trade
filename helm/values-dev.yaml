@@ -21,9 +21,11 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/backend-protocol: HTTP
   hosts:
-    - host: trade-service.passit.com
-      paths:
-        - path: /
+    # host 필드 제거 - Path 기반 라우팅만 사용 (모든 호스트에 매칭)
+    - paths:
+        - path: /api/trades
+          pathType: Prefix
+        - path: /api/deals
           pathType: Prefix
   tls: []
 resources:
