@@ -50,5 +50,9 @@ readinessProbe:
     port: 8080
   initialDelaySeconds: 20
   periodSeconds: 5
+# Valkey 설정 (ElastiCache for Valkey)
 redis:
-  host: "passit-prod-valkey-ro.q2tpkl.ng.0001.apn2.cache.amazonaws.com:6379"
+  host: "passit-prod-valkey-ro.q2tpkl.ng.0001.apn2.cache.amazonaws.com"
+  port: 6379
+  password: ""
+  ssl: true
