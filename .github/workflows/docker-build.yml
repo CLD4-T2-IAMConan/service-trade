@@ -111,25 +111,47 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Helm values in service repository
+      - name: Update Helm values in main repository
+        env:
+          MAIN_REPO_PAT: ${{ secrets.MAIN_REPO_PAT }}
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           IMAGE_TAG="sha-${SHORT_SHA}"
 
-          VALUES_FILE="helm/values-dev.yaml"
-          if [ -f "$VALUES_FILE" ]; then
+          git clone https://${MAIN_REPO_PAT}@github.com/CLD4-T2-IAMConan/Passit.git main-repo
+          cd main-repo
+          
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          
+          # Update dev values
+          git checkout develop || git checkout -b develop
+          VALUES_DEV_FILE="service-trade/helm/values-dev.yaml"
+          if [ -f "$VALUES_DEV_FILE" ]; then
             if command -v yq &> /dev/null; then
-              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_FILE"
+              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_DEV_FILE"
             else
-              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_FILE"
-              rm -f "${VALUES_FILE}.bak"
+              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_DEV_FILE"
+              rm -f "${VALUES_DEV_FILE}.bak"
             fi
-            
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            git add "$VALUES_FILE"
-            git commit -m "chore: update image tag to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
+            git add "$VALUES_DEV_FILE"
+            git commit -m "chore: update trade-service dev image tag to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
+            git push origin develop
+          fi
+          
+          # Update prod values (same SHA tag as dev)
+          git checkout main || git checkout -b main
+          VALUES_PROD_FILE="service-trade/helm/values-prod.yaml"
+          if [ -f "$VALUES_PROD_FILE" ]; then
+            if command -v yq &> /dev/null; then
+              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_PROD_FILE"
+            else
+              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_PROD_FILE"
+              rm -f "${VALUES_PROD_FILE}.bak"
+            fi
+            git add "$VALUES_PROD_FILE"
+            git commit -m "chore: update trade-service prod image tag to $IMAGE_TAG [skip ci]" || echo "No changes to commit"
             git push origin main
           else
-            echo "⚠️  Helm values file not found: $VALUES_FILE"
+            echo "⚠️  Helm values file not found: $VALUES_PROD_FILE"
           fi
