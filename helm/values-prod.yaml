@@ -5,10 +5,12 @@ image:
   tag: "latest"
 imagePullSecrets:
   - name: ghcr-pull-secret
+serviceAccount:
+  name: trade-sa
 service:
   type: ClusterIP
   port: 80
-  targetPort: 8080
+  targetPort: 8083
 ingress:
   enabled: false
   className: ""
@@ -34,24 +36,28 @@ autoscaling:
 database:
   enabled: true
   host: "passit-prod-aurora-cluster.cluster-cnqmcq6uwqa3.ap-northeast-2.rds.amazonaws.com"
-  port: 5432
-  name: trade_db
-  user: postgres
-  password: postgres
+  port: 3306
+  name: passit_db
+  user: passit_user
+  password: passit_password
 env:
   SPRING_PROFILES_ACTIVE: "production"
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
-    port: 8080
-  initialDelaySeconds: 30
+    port: 8083
+  initialDelaySeconds: 60
   periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
-    port: 8080
-  initialDelaySeconds: 20
+    port: 8083
+  initialDelaySeconds: 50
   periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
 # Valkey 설정 (ElastiCache for Valkey)
 redis:
   host: "passit-prod-valkey-ro.q2tpkl.ng.0001.apn2.cache.amazonaws.com"
