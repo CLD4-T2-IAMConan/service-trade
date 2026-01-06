@@ -18,66 +18,21 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout service code
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Checkout main repository (for common/sns-lib)
+      - name: Checkout common library
         uses: actions/checkout@v4
         with:
           repository: CLD4-T2-IAMConan/Passit
-          path: passit-main
-          ref: develop
-          fetch-depth: 1
-          token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+          sparse-checkout: common
+          sparse-checkout-cone-mode: false
+          path: passit-common
 
-      - name: Verify and copy common library
+      - name: Copy common library to build context
         run: |
-          echo "Checking passit-main directory structure..."
-          ls -la passit-main/ || echo "passit-main not found"
-
-          if [ -d "passit-main/common" ]; then
-            echo "Found common directory:"
-            ls -la passit-main/common/
-          else
-            echo "❌ Error: common directory not found in passit-main"
-            echo "Available directories in passit-main:"
-            find passit-main -maxdepth 1 -type d | head -20
-            exit 1
-          fi
-
-          if [ -d "passit-main/common/sns-lib" ]; then
-            echo "Found common/sns-lib, copying..."
-            mkdir -p common
-            cp -r passit-main/common/sns-lib common/sns-lib
-            echo "Copied common/sns-lib:"
-            ls -la common/sns-lib
-          else
-            echo "❌ Error: common/sns-lib not found in passit-main"
-            echo "Available directories in passit-main/common:"
-            find passit-main/common -maxdepth 1 -type d 2>/dev/null | head -20
-            exit 1
-          fi
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: gradle
-
-      - name: Build and publish common/sns-lib to Maven local
-        run: |
-          cd common/sns-lib
-          # Use gradle wrapper from service-trade or system gradle
-          if [ -f "../../gradlew" ]; then
-            chmod +x ../../gradlew
-            ../../gradlew publishToMavenLocal --no-daemon
-          else
-            gradle publishToMavenLocal --no-daemon
-          fi
-          cd ../..
+          cp -r passit-common/common ./common
+          ls -la common
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -111,55 +66,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Helm values in main repository
-        env:
-          MAIN_REPO_PAT: ${{ secrets.MAIN_REPO_PAT }}
+      - name: Update image tag
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           IMAGE_TAG="sha-${SHORT_SHA}"
 
-          git clone https://${MAIN_REPO_PAT}@github.com/CLD4-T2-IAMConan/Passit.git main-repo
-          cd main-repo
-          
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          # Update dev values
-          git checkout develop || git checkout -b develop
-          VALUES_DEV_FILE="service-trade/helm/values-dev.yaml"
-          if [ -f "$VALUES_DEV_FILE" ]; then
-            if command -v yq &> /dev/null; then
-              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_DEV_FILE"
-            else
-              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_DEV_FILE"
-              rm -f "${VALUES_DEV_FILE}.bak"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          # Update image tag in values files
+          for file in helm/values-dev.yaml helm/values-prod.yaml; do
+            if [ -f "$file" ]; then
+              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$file"
+              rm -f "${file}.bak"
+              git add "$file"
             fi
-            git add "$VALUES_DEV_FILE"
-            if ! git diff --staged --quiet; then
-              git commit -m "chore: update trade-service dev image tag to $IMAGE_TAG [skip ci]"
-              git push origin develop
-            else
-              echo "ℹ️  No changes to commit for dev values"
-            fi
-          fi
-          
-          # Update prod values (same SHA tag as dev)
-          git checkout main || git checkout -b main
-          VALUES_PROD_FILE="service-trade/helm/values-prod.yaml"
-          if [ -f "$VALUES_PROD_FILE" ]; then
-            if command -v yq &> /dev/null; then
-              yq eval ".image.tag = \"$IMAGE_TAG\"" -i "$VALUES_PROD_FILE"
-            else
-              sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$VALUES_PROD_FILE"
-              rm -f "${VALUES_PROD_FILE}.bak"
-            fi
-            git add "$VALUES_PROD_FILE"
-            if ! git diff --staged --quiet; then
-              git commit -m "chore: update trade-service prod image tag to $IMAGE_TAG [skip ci]"
-              git push origin main
-            else
-              echo "ℹ️  No changes to commit for prod values"
-            fi
-          else
-            echo "⚠️  Helm values file not found: $VALUES_PROD_FILE"
+          done
+
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update image tag to $IMAGE_TAG [skip ci]"
+            git push origin main
           fi
