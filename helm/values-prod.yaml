@@ -12,13 +12,22 @@ service:
   port: 80
   targetPort: 8083
 ingress:
-  enabled: false
-  className: ""
-  annotations: {}
+  enabled: true
+  className: alb
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: passit-prod-alb
+    alb.ingress.kubernetes.io/load-balancer-name: passit-prod-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
   hosts:
-    - host: trade-service.local
-      paths:
-        - path: /
+    # host 필드 제거 - Path 기반 라우팅만 사용 (모든 호스트에 매칭)
+    - paths:
+        - path: /api/trades
+          pathType: Prefix
+        - path: /api/deals
           pathType: Prefix
   tls: []
 resources:
