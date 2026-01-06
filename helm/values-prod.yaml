@@ -1,8 +1,10 @@
 replicaCount: 2
 image:
-  repository: trade-service
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/cld4-t2-iamconan/service-trade
+  pullPolicy: Always
   tag: "latest"
+imagePullSecrets:
+  - name: ghcr-pull-secret
 service:
   type: ClusterIP
   port: 80
