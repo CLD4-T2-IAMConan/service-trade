@@ -1,0 +1,61 @@
+replicaCount: 2
+image:
+  repository: trade-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: passit-dr-alb
+    alb.ingress.kubernetes.io/load-balancer-name: passit-dr-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+  hosts:
+    - host: trade-service.passit.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+database:
+  enabled: true
+  host: passit-dr-aurora-cluster.cluster-c1ky2k6y6s3s.ap-northeast-1.rds.amazonaws.com
+  port: 5432
+  name: trade_db
+  user: postgres
+  password: postgres
+env:
+  SPRING_PROFILES_ACTIVE: "production"
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 5
+redis:
+  host: passit-dr-valkey.kqxlkn.ng.0001.apne1.cache.amazonaws.com
