@@ -39,6 +39,7 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'com.h2database:h2'
 
     // Database
     runtimeOnly 'com.mysql:mysql-connector-j'

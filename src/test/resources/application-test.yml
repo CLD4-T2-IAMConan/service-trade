@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-test.sql
+      continue-on-error: true
+
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    com.company.trade: DEBUG
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+
+# 외부 서비스 URL 설정 (테스트용 Mock 서버 또는 실제 서버)
+api:
+  ticket-service:
+    url: http://localhost:8082
+
