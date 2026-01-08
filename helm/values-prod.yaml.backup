@@ -2,35 +2,32 @@ replicaCount: 2
 image:
   repository: ghcr.io/cld4-t2-iamconan/service-trade
   pullPolicy: Always
-  tag: "sha-7f1ea5b"
+  tag: "sha-b362b62"
 imagePullSecrets:
   - name: ghcr-pull-secret
-# ServiceAccount는 Terraform IRSA 모듈이 생성 (trade-sa)
-# Helm에서는 생성하지 않고 기존 것을 사용
 serviceAccount:
-  create: false
-  name: trade-sa # Terraform이 생성한 ServiceAccount 사용
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::061051233779:role/passit-trade-dr-irsa
+  name: trade-sa
 service:
   type: ClusterIP
   port: 80
   targetPort: 8083
 ingress:
   enabled: true
-  className: "alb"
+  className: alb
   annotations:
     kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/group.name: passit-dr-alb
-    alb.ingress.kubernetes.io/load-balancer-name: passit-dr-alb
+    alb.ingress.kubernetes.io/group.name: passit-prod-alb
+    alb.ingress.kubernetes.io/load-balancer-name: passit-prod-alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/backend-protocol: HTTP
   hosts:
-    - host: trade-service.passit.com
-      paths:
-        - path: /
+    # host 필드 제거 - Path 기반 라우팅만 사용 (모든 호스트에 매칭)
+    - paths:
+        - path: /api/trades
+          pathType: Prefix
+        - path: /api/deals
           pathType: Prefix
   tls: []
 resources:
@@ -47,7 +44,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 database:
   enabled: true
-  host: passit-prod-aurora-cluster.cluster-ro-c1ky2k6y6s3s.ap-northeast-1.rds.amazonaws.com
+  host: "passit-prod-aurora-cluster.cluster-cnqmcq6uwqa3.ap-northeast-2.rds.amazonaws.com"
   port: 3306
   name: passit_db
   user: passit_user
@@ -59,7 +56,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: 8083
-  initialDelaySeconds: 180
+  initialDelaySeconds: 60
   periodSeconds: 10
   timeoutSeconds: 3
   failureThreshold: 3
@@ -67,18 +64,13 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: 8083
-  initialDelaySeconds: 120
+  initialDelaySeconds: 50
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
 # Valkey 설정 (ElastiCache for Valkey)
 redis:
-  host: passit-dr-valkey.kqxlkn.ng.0001.apne1.cache.amazonaws.com
+  host: "passit-prod-valkey-ro.q2tpkl.ng.0001.apn2.cache.amazonaws.com"
   port: 6379
-  password: "" # ElastiCache 비밀번호가 있는 경우 설정
+  password: ""
   ssl: true
-
-monitoring:
-  enabled: true
-  path: /actuator/prometheus
-  interval: 15s

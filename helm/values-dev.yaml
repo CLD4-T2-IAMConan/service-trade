@@ -20,6 +20,9 @@ ingress:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/healthcheck-port: "8083"
+    alb.ingress.kubernetes.io/success-codes: "200"
   hosts:
     # host 필드 제거 - Path 기반 라우팅만 사용 (모든 호스트에 매칭)
     - paths:
@@ -45,8 +48,8 @@ database:
   host: passit-dev-aurora-cluster.cluster-cnqmcq6uwqa3.ap-northeast-2.rds.amazonaws.com
   port: 3306
   name: passit_db
-  user: passit_user
-  password: passit_password
+  user: admin
+  password: PassitDevPassword123!
 env:
   SPRING_PROFILES_ACTIVE: "production"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
@@ -54,7 +57,7 @@ livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: 8083
-  initialDelaySeconds: 60
+  initialDelaySeconds: 180
   periodSeconds: 10
   timeoutSeconds: 3
   failureThreshold: 3
@@ -62,7 +65,7 @@ readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: 8083
-  initialDelaySeconds: 50
+  initialDelaySeconds: 120
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3

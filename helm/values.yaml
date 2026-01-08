@@ -8,7 +8,7 @@ image:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 8080
+  targetPort: 8083
 
 ingress:
   enabled: false
@@ -37,11 +37,18 @@ autoscaling:
 
 database:
   enabled: true
-  host: postgres-service
-  port: 5432
-  name: trade_db
-  user: postgres
-  password: postgres
+  host: localhost
+  port: 3306
+  name: passit_db
+  user: passit_user
+  password: passit_password
+
+# Valkey 설정 (ElastiCache for Valkey)
+redis:
+  host: "passit-dev-eks.xxxxx.cache.amazonaws.com" # ElastiCache for Valkey 엔드포인트로 변경 필요
+  port: 6379
+  password: "" # ElastiCache 비밀번호가 있는 경우 설정
+  ssl: true
 
 env:
   SPRING_PROFILES_ACTIVE: "production"
@@ -49,13 +56,22 @@ env:
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
-    port: 8080
-  initialDelaySeconds: 30
+    port: 8083
+  initialDelaySeconds: 70
   periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
 
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
-    port: 8080
-  initialDelaySeconds: 20
+    port: 8083
+  initialDelaySeconds: 60
   periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+monitoring:
+  enabled: true
+  path: /actuator/prometheus
+  interval: 15s

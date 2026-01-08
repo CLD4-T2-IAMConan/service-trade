@@ -1,52 +1,99 @@
-# MSA Service Template
+# Service Trade
 
-MSA(Service 단위) Spring Boot 기본 템플릿 레포지토리입니다.
-모든 신규 서비스는 이 템플릿을 기반으로 빠르고 일관성 있게 생성할 수 있습니다.
+Passit 프로젝트의 거래 및 결제 관리 마이크로서비스입니다.
 
 ## 목차
 
 - [프로젝트 개요](#프로젝트-개요)
+- [주요 기능](#주요-기능)
 - [기술 스택](#기술-스택)
 - [시작하기](#시작하기)
-- [템플릿 사용 방법](#템플릿-사용-방법)
-- [로컬 개발 환경](#로컬-개발-환경)
-- [프로젝트 구조](#프로젝트-구조)
-- [배포](#배포)
 - [API 문서](#api-문서)
+- [환경 변수](#환경-변수)
 - [개발 규칙](#개발-규칙)
-- [IntelliJ IDEA 추천 설정](#intellij-idea-추천-설정)
 
 ## 프로젝트 개요
 
-이 템플릿은 MSA 기반 Spring Boot 서비스를 빠르게 시작할 수 있도록 다음을 제공합니다:
+Service Trade는 Passit 플랫폼의 거래 생성, 상태 관리, 결제 처리를 담당하는 독립적인 마이크로서비스입니다.
 
-- Spring Boot 3.x 기반 프로젝트 구조
-- Docker & Docker Compose 설정
-- Kubernetes 매니페스트 및 Helm Chart
-- GitHub Actions CI/CD 파이프라인
-- 공통 API 응답 형식 및 예외 처리
-- Health Check 엔드포인트
+### 주요 책임
+
+- 거래 생성 및 관리
+- 거래 상태 관리 (요청, 승인, 결제, 완료, 취소)
+- 결제 처리 및 검증
+- 거래 히스토리 관리
+- SNS 이벤트 발행
+- 티켓 서비스 연동
+
+## 주요 기능
+
+### 거래 관리
+
+- **거래 생성**: 티켓 구매 거래 생성
+- **거래 승인**: 판매자의 거래 승인/거절
+- **거래 취소**: 구매자/판매자의 거래 취소
+- **거래 완료**: 거래 완료 처리
+- **거래 조회**: 거래 상세 정보 조회
+- **거래 목록**: 사용자별 거래 목록 (구매/판매)
+
+### 거래 상태 관리
+
+거래는 다음과 같은 상태를 가집니다:
+
+1. **REQUESTED**: 구매자가 거래 요청
+2. **APPROVED**: 판매자가 거래 승인
+3. **PAID**: 구매자가 결제 완료
+4. **COMPLETED**: 거래 완료
+5. **CANCELLED**: 거래 취소
+6. **REJECTED**: 판매자가 거래 거절
+
+### 결제 관리
+
+- **결제 생성**: 거래에 대한 결제 정보 생성
+- **결제 완료**: 결제 완료 처리
+- **결제 검증**: 결제 정보 검증
+- **결제 취소**: 결제 취소 및 환불 처리
+- **결제 내역**: 결제 히스토리 조회
+
+### 이벤트 처리
+
+- **거래 이벤트 발행**: SNS를 통한 거래 상태 변경 이벤트 발행
+- **티켓 상태 동기화**: 거래 상태에 따른 티켓 상태 업데이트 이벤트 발행
+- **알림 이벤트**: 거래 관련 알림 이벤트 발행
+
+### 서비스 간 통신
+
+- **티켓 서비스 조회**: 티켓 정보 조회 및 검증
+- **사용자 정보 확인**: Account 서비스를 통한 사용자 검증
+- **채팅방 생성**: Chat 서비스 연동
 
 ## 기술 스택
 
 ### Backend
 
 - **Java**: 17
-- **Spring Boot**: 3.2.x
+- **Spring Boot**: 3.2.0
 - **Spring Data JPA**: 데이터베이스 접근
+- **Spring Security**: JWT 토큰 검증
 - **Spring Validation**: 요청 검증
+- **Spring WebFlux**: 비동기 HTTP 클라이언트
+- **AWS SDK**: SNS 연동
 - **Lombok**: 보일러플레이트 코드 감소
 
 ### Database
 
-- **PostgreSQL**: 16
+- **MySQL**: 8.0+
 
-### DevOps
+### AWS Services
 
-- **Docker**: 컨테이너화
-- **Kubernetes**: 오케스트레이션
-- **Helm**: 패키지 관리
-- **GitHub Actions**: CI/CD
+- **SNS**: 이벤트 발행
+- **SQS**: 이벤트 수신 (선택)
+
+### Testing
+
+- **JUnit 5**: 단위 테스트
+- **Mockito**: Mock 객체 생성
+- **WebTestClient**: API 통합 테스트
 
 ### Build Tool
 
@@ -63,139 +110,66 @@ MSA(Service 단위) Spring Boot 기본 템플릿 레포지토리입니다.
 | IntelliJ IDEA  | 최신 (Community/Ultimate) | [JetBrains](https://www.jetbrains.com/idea/)             |
 | JDK            | 17                        | [Adoptium](https://adoptium.net)                         |
 | Docker Desktop | 최신                      | [Docker](https://www.docker.com/products/docker-desktop) |
-| kubectl        | 1.27+                     | [Kubernetes](https://kubernetes.io)                      |
-| kind           | 최신                      | [kind](https://kind.sigs.k8s.io)                         |
-| Helm           | 최신                      | [Helm](https://helm.sh)                                  |
 | Git            | 최신                      | [Git](https://git-scm.com)                               |
 
-## 템플릿 사용 방법
+### 로컬 개발 환경 설정
 
-### 1. 템플릿에서 새 리포지토리 생성
-
-1. GitHub에서 이 리포지토리 페이지로 이동
-2. 우측 상단 **Use this template** 버튼 클릭
-3. 새 리포지토리 이름 입력 (예: `service-account`, `service-ticket`)
-4. **Create repository** 클릭
-
-### 2. 로컬로 클론
+#### 1. 리포지토리 클론
 
 ```bash
-git clone https://github.com/your-org/your-service-name.git
-cd your-service-name
+git clone https://github.com/your-org/service-trade.git
+cd service-trade
 ```
 
-### 3. 프로젝트 설정 변경
-
-다음 파일들에서 `template`을 실제 서비스 이름으로 변경하세요:
-
-#### 필수 변경 파일:
-
-- `settings.gradle`: `rootProject.name`
-- `src/main/resources/application.yml`: `spring.application.name`
-- `src/main/java/com/company/template/`: 패키지명 변경
-- `helm/Chart.yaml`: `name`, `description`
-- `helm/values.yaml`: 이미지 이름 등
-
-#### 자동 변경 스크립트 (선택):
-
-```bash
-./scripts/rename-service.sh your-service-name
-```
-
-## 로컬 개발 환경
-
-### 방법 1: Docker Compose 사용 (권장)
-
-#### 1) 데이터베이스 시작
-
-```bash
-docker-compose up -d postgres
-```
-
-#### 2) 애플리케이션 실행
-
-```bash
-./gradlew bootRun
-```
-
-#### 3) 전체 스택 실행 (앱 + DB)
+#### 2. 데이터베이스 시작 (Docker Compose)
 
 ```bash
 docker-compose up -d
 ```
 
-#### 4) 종료
+MySQL 컨테이너가 시작됩니다.
+
+#### 3. 환경 변수 설정
+
+필요한 경우 환경 변수를 설정하세요:
 
 ```bash
-docker-compose down
+# 데이터베이스
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_NAME=passit_db
+export DB_USER=passit_user
+export DB_PASSWORD=passit_password
+
+# 서비스 통신
+export TICKET_SERVICE_URL=http://localhost:8082
+export ACCOUNT_SERVICE_URL=http://localhost:8081
+
+# AWS (선택)
+export AWS_REGION=ap-northeast-2
+export AWS_SNS_TOPIC_ARN=arn:aws:sns:...
 ```
 
-### 방법 2: IntelliJ IDEA 사용 (권장)
+#### 4. 애플리케이션 실행
 
-#### 1) 프로젝트 열기
-
-1. IntelliJ IDEA 실행
-2. `File > Open` 선택
-3. 프로젝트 루트 디렉토리 선택 (`build.gradle` 파일이 있는 위치)
-4. `Open as Project` 클릭
-5. Gradle 프로젝트가 자동으로 import 됨
-
-#### 2) JDK 설정 확인
-
-1. `File > Project Structure` (`Cmd+;` 또는 `Ctrl+Alt+Shift+S`)
-2. `Project` 섹션에서 SDK를 `17` 이상으로 설정
-3. Language level도 `17`로 설정
-
-#### 3) 애플리케이션 실행
-
-1. `src/main/java/com/company/template/TemplateApplication.java` 파일 열기
-2. 파일 내 `main` 메서드 왼쪽의 ▶️ 버튼 클릭
-3. `Run 'TemplateApplication'` 선택
-
-또는 상단 메뉴:
-
-- `Run > Run...` 선택 후 `TemplateApplication` 선택
-
-#### 4) 빌드
-
-- **전체 프로젝트 빌드**: `Build > Build Project` (`Cmd+F9` 또는 `Ctrl+F9`)
-- **Gradle 빌드**: 우측 Gradle 패널 > `Tasks > build > build` 더블클릭
-
-#### 5) 테스트 실행
-
-- **전체 테스트**: `src/test/java` 우클릭 > `Run 'Tests in...'`
-- **개별 테스트**: 테스트 파일 내에서 ▶️ 버튼 클릭
-- **Gradle 테스트**: Gradle 패널 > `Tasks > verification > test`
-
-#### 6) Run Configuration 설정 (선택)
-
-1. 상단 Run Configuration 드롭다운 클릭 > `Edit Configurations...`
-2. Environment Variables에 추가:
-   ```
-   SPRING_PROFILES_ACTIVE=local
-   ```
-3. VM Options에 추가 (필요시):
-   ```
-   -Xmx512m -Xms256m
-   ```
-
-### 방법 3: Gradle로 직접 실행
+**방법 1: Gradle로 실행**
 
 ```bash
-# 빌드
-./gradlew build
-
-# 실행
 ./gradlew bootRun
-
-# 테스트
-./gradlew test
 ```
 
-### Health Check 확인
+**방법 2: IntelliJ IDEA**
+
+1. 프로젝트를 IntelliJ IDEA로 열기
+2. `src/main/java/com/company/trade/TradeApplication.java` 실행
+3. Run Configuration에서 환경 변수 설정 가능
+
+애플리케이션은 `http://localhost:8085`에서 실행됩니다.
+
+#### 5. Health Check 확인
 
 ```bash
-curl http://localhost:8080/api/health
+curl http://localhost:8085/api/health
 ```
 
 응답 예시:
@@ -205,144 +179,31 @@ curl http://localhost:8080/api/health
   "success": true,
   "data": {
     "status": "UP",
-    "service": "template"
+    "service": "service-trade"
   },
   "error": null
 }
 ```
 
-### 패키지 구조 상세
+### 빌드 및 테스트
 
-```
-com.company.{service-name}
- ├── controller/          # Presentation Layer
- │   ├── api/            # API 버전별 컨트롤러
- │   └── request/        # 요청 DTO
- │
- ├── service/            # Business Layer
- │   ├── impl/           # 서비스 구현체
- │   └── mapper/         # Entity ↔ DTO 변환
- │
- ├── repository/         # Persistence Layer
- │   ├── custom/         # 커스텀 Repository
- │   └── specification/  # JPA Specification
- │
- ├── domain/             # Domain Layer
- │   ├── entity/         # JPA 엔티티
- │   ├── vo/             # Value Objects
- │   └── enums/          # 열거형
- │
- ├── dto/                # Data Transfer Objects
- │   ├── request/        # API 요청 DTO
- │   └── response/       # API 응답 DTO
- │
- ├── config/             # Infrastructure
- │   ├── security/       # 보안 설정
- │   ├── database/       # DB 설정
- │   └── web/            # Web 설정
- │
- ├── exception/          # Exception Handling
- │   ├── custom/         # 커스텀 예외
- │   └── handler/        # 전역 예외 핸들러
- │
- └── util/               # Utilities
-     ├── validation/     # 커스텀 Validator
-     └── constant/       # 상수
-```
-
-## 프로젝트 구조
-
-```
-msa-service-template/
-├── .github/
-│   ├── workflows/          # GitHub Actions 워크플로우
-│   └── PULL_REQUEST_TEMPLATE.md
-├── helm/                   # Helm Chart
-│   ├── templates/
-│   ├── Chart.yaml
-│   └── values.yaml
-├── k8s/                    # Kubernetes 매니페스트
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── configmap.yaml
-│   └── secret.yaml
-├── scripts/                # 유틸리티 스크립트
-├── src/
-│   ├── main/
-│   │   ├── java/com/company/template/
-│   │   │   ├── controller/     # REST 컨트롤러
-│   │   │   ├── service/        # 비즈니스 로직
-│   │   │   ├── repository/     # 데이터 접근
-│   │   │   ├── entity/         # JPA 엔티티
-│   │   │   ├── dto/            # 데이터 전송 객체
-│   │   │   ├── config/         # 설정 클래스
-│   │   │   ├── exception/      # 예외 처리
-│   │   │   └── TemplateApplication.java
-│   │   └── resources/
-│   │       └── application.yml
-│   └── test/
-├── build.gradle            # Gradle 빌드 설정
-├── settings.gradle
-├── Dockerfile             # Docker 이미지 빌드
-├── docker-compose.yml     # 로컬 개발 환경
-└── README.md
-```
-
-## 배포
-
-### Kubernetes (kind 로컬 클러스터)
-
-#### 1) 클러스터 생성
+#### 전체 빌드
 
 ```bash
-kind create cluster --name msa-local
+./gradlew clean build
 ```
 
-#### 2) 이미지 빌드 & 로드
+#### 단위 테스트 실행
 
 ```bash
-docker build -t template-service:latest .
-kind load docker-image template-service:latest --name msa-local
+./gradlew test
 ```
 
-#### 3) 배포
+#### 테스트 리포트 확인
 
 ```bash
-kubectl apply -f k8s/
-```
-
-#### 4) 확인
-
-```bash
-kubectl get pods
-kubectl get services
-kubectl logs -f <pod-name>
-```
-
-#### 5) 포트 포워딩으로 접근
-
-```bash
-kubectl port-forward svc/template-service 8080:80
-```
-
-### Helm
-
-#### 설치
-
-```bash
-helm install my-service ./helm
-```
-
-#### 업그레이드
-
-```bash
-helm upgrade my-service ./helm
-```
-
-#### 삭제
-
-```bash
-helm uninstall my-service
+# 리포트 확인: build/reports/tests/test/index.html
+open build/reports/tests/test/index.html
 ```
 
 ## API 문서
@@ -359,6 +220,7 @@ helm uninstall my-service
   "data": {
     /* 실제 데이터 */
   },
+  "message": "성공 메시지",
   "error": null
 }
 ```
@@ -369,30 +231,201 @@ helm uninstall my-service
 {
   "success": false,
   "data": null,
-  "error": "Error message"
+  "message": null,
+  "error": "에러 메시지"
 }
 ```
 
 ### 주요 엔드포인트
 
-- `GET /api/health`: 헬스 체크
-- `GET /actuator/health`: Spring Boot Actuator 헬스 체크
-- `GET /actuator/info`: 애플리케이션 정보
+#### 거래 API (`/api/deals`)
+
+| Method | Endpoint                | 설명                  | 인증 필요 |
+| ------ | ----------------------- | --------------------- | --------- |
+| POST   | `/`                     | 거래 생성             | ✅        |
+| GET    | `/{dealId}`             | 거래 상세 조회        | ✅        |
+| GET    | `/my/buying`            | 내 구매 목록          | ✅        |
+| GET    | `/my/selling`           | 내 판매 목록          | ✅        |
+| POST   | `/{dealId}/approve`     | 거래 승인             | ✅        |
+| POST   | `/{dealId}/reject`      | 거래 거절             | ✅        |
+| POST   | `/{dealId}/cancel`      | 거래 취소             | ✅        |
+| POST   | `/{dealId}/complete`    | 거래 완료             | ✅        |
+| GET    | `/ticket/{ticketId}`    | 티켓별 거래 목록      | ✅        |
+
+#### 결제 API (`/api/payments`)
+
+| Method | Endpoint                | 설명                  | 인증 필요 |
+| ------ | ----------------------- | --------------------- | --------- |
+| POST   | `/`                     | 결제 생성             | ✅        |
+| GET    | `/{paymentId}`          | 결제 상세 조회        | ✅        |
+| POST   | `/{paymentId}/complete` | 결제 완료             | ✅        |
+| POST   | `/{paymentId}/cancel`   | 결제 취소             | ✅        |
+| GET    | `/deal/{dealId}`        | 거래별 결제 정보      | ✅        |
+| GET    | `/my`                   | 내 결제 내역          | ✅        |
+
+#### 티켓 정보 API (`/api/tickets`)
+
+| Method | Endpoint                | 설명                  | 인증 필요 |
+| ------ | ----------------------- | --------------------- | --------- |
+| GET    | `/{ticketId}`           | 티켓 정보 조회        | ✅        |
+| GET    | `/{ticketId}/available` | 티켓 구매 가능 여부   | ✅        |
+
+#### Health Check
+
+| Method | Endpoint           | 설명                     |
+| ------ | ------------------ | ------------------------ |
+| GET    | `/api/health`      | 서비스 헬스 체크         |
+| GET    | `/actuator/health` | Spring Actuator 헬스 체크 |
+
+### 요청/응답 예시
+
+#### 거래 생성
+
+**Request:**
+
+```json
+POST /api/deals
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "ticketId": 123,
+  "buyerId": 456,
+  "price": 150000,
+  "message": "빠른 거래 원합니다"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "dealId": 789,
+    "ticketId": 123,
+    "buyerId": 456,
+    "sellerId": 111,
+    "status": "REQUESTED",
+    "price": 150000,
+    "createdAt": "2024-01-08T10:00:00"
+  },
+  "message": "거래가 요청되었습니다.",
+  "error": null
+}
+```
+
+#### 거래 승인
+
+**Request:**
+
+```json
+POST /api/deals/789/approve
+Authorization: Bearer {token}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "dealId": 789,
+    "status": "APPROVED",
+    "updatedAt": "2024-01-08T10:05:00"
+  },
+  "message": "거래가 승인되었습니다.",
+  "error": null
+}
+```
+
+## 환경 변수
+
+### 데이터베이스
+
+| 변수          | 설명              | 기본값          |
+| ------------- | ----------------- | --------------- |
+| `DB_HOST`     | MySQL 호스트      | localhost       |
+| `DB_PORT`     | MySQL 포트        | 3306            |
+| `DB_NAME`     | 데이터베이스 이름 | passit_db       |
+| `DB_USER`     | DB 사용자         | passit_user     |
+| `DB_PASSWORD` | DB 비밀번호       | passit_password |
+
+### 서비스 통신
+
+| 변수                   | 설명                 | 기본값                 |
+| ---------------------- | -------------------- | ---------------------- |
+| `TICKET_SERVICE_URL`   | Ticket 서비스 URL    | http://localhost:8082  |
+| `ACCOUNT_SERVICE_URL`  | Account 서비스 URL   | http://localhost:8081  |
+| `CHAT_SERVICE_URL`     | Chat 서비스 URL      | http://localhost:8083  |
+
+### AWS 설정 (선택)
+
+| 변수                   | 설명                | 기본값           |
+| ---------------------- | ------------------- | ---------------- |
+| `AWS_REGION`           | AWS 리전            | ap-northeast-2   |
+| `AWS_SNS_TOPIC_ARN`    | SNS Topic ARN       | -                |
+| `AWS_ACCESS_KEY_ID`    | AWS Access Key      | -                |
+| `AWS_SECRET_ACCESS_KEY`| AWS Secret Key      | -                |
+
+## 프로젝트 구조
+
+```
+service-trade/
+├── src/
+│   ├── main/
+│   │   ├── java/com/company/trade/
+│   │   │   ├── config/              # 설정 클래스 (Security, AWS, WebClient 등)
+│   │   │   ├── controller/          # REST API 컨트롤러
+│   │   │   ├── dto/                 # 요청/응답 DTO
+│   │   │   ├── entity/              # JPA 엔티티
+│   │   │   ├── exception/           # 커스텀 예외 및 핸들러
+│   │   │   ├── repository/          # JPA Repository
+│   │   │   ├── service/             # 비즈니스 로직
+│   │   │   └── TradeApplication.java
+│   │   └── resources/
+│   │       ├── application.yml      # 애플리케이션 설정
+│   │       ├── application-dev.yml  # Dev 환경 설정
+│   │       └── application-prod.yml # Prod 환경 설정
+│   └── test/
+│       ├── java/                    # 테스트 코드
+│       │   ├── controller/         # 컨트롤러 테스트
+│       │   └── service/            # 서비스 테스트
+│       └── resources/
+│           ├── application-test.yml
+│           └── data-test.sql
+├── build.gradle                     # Gradle 빌드 설정
+├── docker-compose.yml               # Docker Compose 설정
+├── helm/                            # Helm 차트
+├── k8s/                             # Kubernetes 매니페스트
+├── scripts/                         # 유틸리티 스크립트
+└── README.md
+```
 
 ## 개발 규칙
 
-### 패키지 구조 규칙
+### 코드 스타일
+
+- Java Code Convention 준수
+- Lombok 적극 활용
+- Layer 간 의존성 방향: Controller → Service → Repository
+- DTO 사용으로 Entity 노출 방지
+- 모든 API 응답은 `ApiResponse` 래퍼 사용
+
+### 거래 상태 전이 규칙
 
 ```
-com.company.{service-name}
- ├── controller      # REST API 엔드포인트
- ├── service         # 비즈니스 로직
- ├── repository      # 데이터베이스 접근
- ├── entity          # JPA 엔티티
- ├── dto             # 요청/응답 DTO
- ├── config          # 설정 클래스
- └── exception       # 커스텀 예외 및 핸들러
+REQUESTED → APPROVED → PAID → COMPLETED
+    ↓           ↓         ↓
+CANCELLED   REJECTED  CANCELLED
 ```
+
+- `REQUESTED`: 초기 상태, 구매자가 생성
+- `APPROVED`: 판매자 승인 후
+- `REJECTED`: 판매자 거절 시 (종료)
+- `PAID`: 결제 완료 후
+- `COMPLETED`: 거래 완료 (종료)
+- `CANCELLED`: 언제든지 취소 가능 (종료)
 
 ### 브랜치 전략
 
@@ -400,13 +433,6 @@ com.company.{service-name}
 - `develop`: 개발 환경 통합 브랜치
 - `feature/{기능명}`: 기능 개발 브랜치
 - `bugfix/{버그명}`: 버그 수정 브랜치
-
-### Pull Request 규칙
-
-1. PR 생성 시 템플릿 작성
-2. 최소 1명 이상 리뷰어 지정
-3. CI 성공 필수
-4. 승인 후 Squash Merge
 
 ### 커밋 메시지 규칙
 
@@ -420,102 +446,12 @@ test: 테스트 코드
 chore: 빌드, 설정 파일 수정
 ```
 
-### 코드 스타일
+### Pull Request 규칙
 
-- Java Code Convention 준수
-- Lombok 적극 활용
-- Layer 간 의존성 방향: Controller → Service → Repository
-- DTO 사용으로 Entity 노출 방지
-
-## IntelliJ IDEA 추천 설정
-
-### 필수 플러그인
-
-권장 플러그인 설치 방법: `File > Settings > Plugins`
-
-- **Lombok**: Lombok 어노테이션 지원 (필수)
-- **String Manipulation**: 문자열 조작 단축키
-- **Rainbow Brackets**: 괄호 가독성 향상
-- **SonarLint**: 코드 품질 검사
-
-### Lombok 설정
-
-Lombok 사용을 위한 필수 설정:
-
-1. `File > Settings > Build, Execution, Deployment > Compiler > Annotation Processors`
-2. `Enable annotation processing` 체크
-
-### 코드 스타일 설정
-
-1. `File > Settings > Editor > Code Style > Java`
-2. 권장 설정:
-   - Indent: 4 spaces
-   - Tab size: 4
-   - Continuation indent: 8
-
-### Live Templates 추천
-
-자주 사용하는 코드 스니펫 등록: `File > Settings > Editor > Live Templates`
-
-```java
-// psvm - public static void main
-public static void main(String[] args) {
-    $END$
-}
-
-// sout - System.out.println
-System.out.println($END$);
-
-// rest - REST Controller 생성
-@RestController
-@RequestMapping("/api/$PATH$")
-@RequiredArgsConstructor
-public class $CLASS$Controller {
-    $END$
-}
-```
-
-## CI/CD
-
-### GitHub Actions 워크플로우
-
-1. **CI** (`.github/workflows/ci.yml`)
-
-   - PR 생성 시 자동 빌드 및 테스트
-   - 테스트 결과 리포트 생성
-
-2. **Docker Build** (`.github/workflows/docker-build.yml`)
-
-   - main 브랜치 푸시 시 Docker 이미지 빌드
-   - GitHub Container Registry에 푸시
-
-3. **Code Quality** (`.github/workflows/code-quality.yml`)
-   - 코드 스타일 검사
-   - 정적 분석
-
-## 환경 변수
-
-### 로컬 개발
-
-`src/main/resources/application.yml`에서 설정
-
-### Docker
-
-`docker-compose.yml`의 환경 변수 섹션
-
-### Kubernetes
-
-`k8s/configmap.yaml` 및 `k8s/secret.yaml`
-
-### 주요 환경 변수
-
-| 변수          | 설명                  | 기본값      |
-| ------------- | --------------------- | ----------- |
-| `DB_HOST`     | 데이터베이스 호스트   | localhost   |
-| `DB_PORT`     | 데이터베이스 포트     | 5432        |
-| `DB_NAME`     | 데이터베이스 이름     | template_db |
-| `DB_USER`     | 데이터베이스 사용자   | postgres    |
-| `DB_PASSWORD` | 데이터베이스 비밀번호 | postgres    |
+1. PR 생성 시 템플릿 작성
+2. 최소 1명 이상 리뷰어 지정
+3. CI 성공 필수
+4. 승인 후 Squash Merge
 
 ## 트러블슈팅
 
@@ -529,24 +465,51 @@ public class $CLASS$Controller {
 ./gradlew wrapper
 ```
 
-### Docker 컨테이너 시작 실패
+### 데이터베이스 연결 실패
 
 ```bash
-# 로그 확인
-docker-compose logs
+# Docker 컨테이너 상태 확인
+docker-compose ps
+
+# MySQL 로그 확인
+docker-compose logs mysql
 
 # 컨테이너 재시작
-docker-compose restart
+docker-compose restart mysql
 ```
 
-### Kubernetes Pod 시작 실패
+### 서비스 간 통신 실패
+
+- 서비스 URL 확인
+- 네트워크 연결 확인
+- JWT 토큰 전파 확인
+- 방화벽 설정 확인
+
+### SNS 이벤트 발행 실패
+
+- AWS 자격증명 확인
+- IAM 권한 확인 (SNS Publish)
+- Topic ARN 확인
+- 네트워크 연결 확인
+
+## 배포
+
+### Docker 빌드
 
 ```bash
-# Pod 상태 확인
-kubectl describe pod <pod-name>
+docker build -t trade-service:latest .
+```
 
-# 로그 확인
-kubectl logs <pod-name>
+### Kubernetes 배포
+
+```bash
+kubectl apply -f k8s/
+```
+
+### Helm 배포
+
+```bash
+helm install trade-service ./helm
 ```
 
 ## 라이선스

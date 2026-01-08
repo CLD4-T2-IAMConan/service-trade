@@ -3,9 +3,9 @@ kind: ConfigMap
 metadata:
   name: trade-config
 data:
-  db.host: "postgres-service"
-  db.port: "5432"
-  db.name: "trade_db"
+  db.host: "mysql-service"
+  db.port: "3306"
+  db.name: "passit_db"
   application.yml: |
     spring:
       application:
