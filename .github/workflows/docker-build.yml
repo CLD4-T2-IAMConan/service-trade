@@ -75,7 +75,7 @@ jobs:
           git config user.name "github-actions[bot]"
 
           # Update image tag in values files
-          for file in helm/values-dev.yaml helm/values-prod.yaml; do
+          for file in helm/values-dev.yaml helm/values-prod.yaml helm/values-dr.yaml; do
             if [ -f "$file" ]; then
               sed -i.bak "s|tag:.*|tag: \"$IMAGE_TAG\"|g" "$file"
               rm -f "${file}.bak"
