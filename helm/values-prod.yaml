@@ -50,7 +50,7 @@ database:
   user: passit_user
   password: passit_password
 env:
-  SPRING_PROFILES_ACTIVE: "production"
+  SPRING_PROFILES_ACTIVE: "prod"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
 livenessProbe:
   httpGet:
