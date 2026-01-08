@@ -10,9 +10,9 @@ RUN gradle publishToMavenLocal --no-daemon
 
 # Build service-trade
 WORKDIR /app
-COPY build.gradle settings.gradle ./
-COPY gradle gradle
-COPY src src
+COPY service-trade/build.gradle service-trade/settings.gradle ./
+COPY service-trade/gradle gradle
+COPY service-trade/src src
 RUN gradle build --no-daemon -x test
 
 # Runtime stage
