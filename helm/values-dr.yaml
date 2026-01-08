@@ -61,3 +61,6 @@ readinessProbe:
   periodSeconds: 5
 redis:
   host: passit-dr-valkey.kqxlkn.ng.0001.apne1.cache.amazonaws.com
+  port: 6379
+  password: "" # ElastiCache 비밀번호가 있는 경우 설정
+  ssl: true
