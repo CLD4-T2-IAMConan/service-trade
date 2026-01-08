@@ -2,7 +2,7 @@ replicaCount: 2
 image:
   repository: ghcr.io/cld4-t2-iamconan/service-trade
   pullPolicy: Always
-  tag: "sha-b362b62"
+  tag: "sha-d8c9303"
 imagePullSecrets:
   - name: ghcr-pull-secret
 serviceAccount:
@@ -50,7 +50,7 @@ database:
   user: passit_user
   password: passit_password
 env:
-  SPRING_PROFILES_ACTIVE: "production"
+  SPRING_PROFILES_ACTIVE: "prod"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
 livenessProbe:
   httpGet:
