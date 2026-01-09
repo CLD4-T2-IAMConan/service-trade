@@ -4,7 +4,7 @@ replicaCount: 2
 image:
   repository: ghcr.io/cld4-t2-iamconan/service-trade
   pullPolicy: Always
-  tag: "sha-0eeea59"
+  tag: "sha-e0b0602"
 imagePullSecrets:
   - name: ghcr-pull-secret
 # ServiceAccount는 Terraform IRSA 모듈이 생성 (trade-sa)
