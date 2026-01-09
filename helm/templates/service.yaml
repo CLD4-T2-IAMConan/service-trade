@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "template-service.fullname" . }}
+  name: {{ include "serivce-trade.fullname" . }}
   labels:
-    {{- include "template-service.labels" . | nindent 4 }}
+    {{- include "serivce-trade.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "template-service.selectorLabels" . | nindent 4 }}
+    {{- include "serivce-trade.selectorLabels" . | nindent 4 }}

@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "template-service.fullname" . }}
+  name: {{ include "serivce-trade.fullname" . }}
   labels:
-    {{- include "template-service.labels" . | nindent 4 }}
+    {{- include "serivce-trade.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "template-service.selectorLabels" . | nindent 6 }}
+      {{- include "serivce-trade.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "template-service.selectorLabels" . | nindent 8 }}
+        {{- include "serivce-trade.selectorLabels" . | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount }}
       {{- if .Values.serviceAccount.name }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- else }}
-      serviceAccountName: {{ include "template-service.fullname" . }}-sa
+      serviceAccountName: {{ include "serivce-trade.fullname" . }}-sa
       {{- end }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
@@ -45,33 +45,33 @@ spec:
         - name: DB_USER
           valueFrom:
             secretKeyRef:
-              name: {{ include "template-service.fullname" . }}-secret
+              name: {{ include "serivce-trade.fullname" . }}-secret
               key: db-user
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ include "template-service.fullname" . }}-secret
+              name: {{ include "serivce-trade.fullname" . }}-secret
               key: db-password
         {{- if .Values.redis }}
         - name: REDIS_HOST
           valueFrom:
             configMapKeyRef:
-              name: {{ include "template-service.fullname" . }}-config
+              name: {{ include "serivce-trade.fullname" . }}-config
               key: redis.host
         - name: REDIS_PORT
           valueFrom:
             configMapKeyRef:
-              name: {{ include "template-service.fullname" . }}-config
+              name: {{ include "serivce-trade.fullname" . }}-config
               key: redis.port
         - name: REDIS_SSL
           valueFrom:
             configMapKeyRef:
-              name: {{ include "template-service.fullname" . }}-config
+              name: {{ include "serivce-trade.fullname" . }}-config
               key: redis.ssl
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ include "template-service.fullname" . }}-secret
+              name: {{ include "serivce-trade.fullname" . }}-secret
               key: redis-password
         {{- end }}
         {{- range $key, $value := .Values.env }}

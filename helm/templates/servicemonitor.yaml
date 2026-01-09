@@ -2,14 +2,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "template-service.fullname" . }}
+  name: {{ include "serivce-trade.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     release: kube-prometheus-stack
 spec:
   selector:
     matchLabels:
-      {{- include "template-service.selectorLabels" . | nindent 6 }}
+      {{- include "serivce-trade.selectorLabels" . | nindent 6 }}
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}
