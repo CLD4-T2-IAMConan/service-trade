@@ -47,7 +47,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 database:
   enabled: true
-  host: passit-prod-aurora-cluster.cluster-ro-c1ky2k6y6s3s.ap-northeast-1.rds.amazonaws.com
+  host: passit-dr-aurora-cluster.cluster-c1ky2k6y6s3s.ap-northeast-1.rds.amazonaws.com
   port: 3306
   name: passit_db
   user: passit_user
